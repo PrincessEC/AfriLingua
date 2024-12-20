@@ -1,0 +1,82 @@
+# ── Environment & secrets 
+.env
+.env.*
+!.env.example
+
+# ── Python 
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+wheels/
+*.whl
+.eggs/
+MANIFEST
+
+# ── Virtual environments 
+.venv/
+venv/
+env/
+ENV/
+.virtualenv/
+
+# ── HuggingFace model cache (large binary files) 
+models/
+
+# ── Downloaded & generated data 
+data/raw/
+data/processed/
+data/finetuned/
+
+# ── Test & coverage artifacts 
+.pytest_cache/
+.coverage
+htmlcov/
+coverage.xml
+*.coveragerc
+
+# ── Type checkers & linters 
+.mypy_cache/
+.ruff_cache/
+.pytype/
+
+# ── Jupyter notebooks 
+.ipynb_checkpoints/
+*.ipynb
+
+# ── OS files 
+.DS_Store
+Thumbs.db
+desktop.ini
+ehthumbs.db
+
+# ── Windows shortcuts / temp files 
+*.lnk
+*.tmp
+*.bak
+*~
+
+# ── IDE / editor configs 
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+
+# ── Logs & debug output ─
+logs/
+*.log
+
+# ── Temporary audio / translation output files 
+*.wav
+*.mp3
+*.ogg
+translated_*
+
+# ── Packaging 
+*.spec
+
