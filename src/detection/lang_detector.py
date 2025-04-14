@@ -13,16 +13,29 @@ from lingua import Language, LanguageDetectorBuilder
 
 logger = logging.getLogger(__name__)
 
-# Only load the four languages we care about — faster and more accurate
-_SUPPORTED = [Language.ENGLISH, Language.IGBO, Language.YORUBA, Language.HAUSA]
+# Lingua only supports ENGLISH and YORUBA from our target set.
+# Igbo and Hausa are handled via a lightweight word-list fallback.
+_SUPPORTED = [Language.ENGLISH, Language.YORUBA]
 
 # Lingua language → our normalised name
 _LINGUA_TO_NAME: dict[Language, str] = {
     Language.ENGLISH: "english",
-    Language.IGBO:    "igbo",
     Language.YORUBA:  "yoruba",
-    Language.HAUSA:   "hausa",
 }
+
+# Minimal word-list heuristics for languages lingua doesn't cover
+_IGBO_WORDS  = {"kedu", "nne", "nna", "ọ", "gị", "anyị", "daalụ", "nnoo", "biko", "ụlọ", "aha", "nọ"}
+_HAUSA_WORDS = {"yaya", "kai", "ina", "gida", "kana", "tafi", "yaro", "wannan", "alhaji", "nagode", "sannu"}
+
+
+def _wordlist_detect(text: str) -> Optional[str]:
+    """Return 'igbo' or 'hausa' if enough known words are found, else None."""
+    tokens = set(text.lower().split())
+    igbo_hits  = len(tokens & _IGBO_WORDS)
+    hausa_hits = len(tokens & _HAUSA_WORDS)
+    if igbo_hits == 0 and hausa_hits == 0:
+        return None
+    return "igbo" if igbo_hits >= hausa_hits else "hausa"
 
 _DEFAULT_CONFIDENCE_THRESHOLD = 0.70
 
@@ -52,27 +65,31 @@ class LanguageDetector:
         """
         Return (language_name, confidence_score).
         language_name is "unknown" when no language exceeds the threshold.
+        Igbo/Hausa use a word-list heuristic (confidence reported as 0.80).
         """
         if not text.strip():
             return "unknown", 0.0
 
+        # Word-list heuristic first — catches Igbo/Hausa before lingua
+        # misclassifies them as English or another Latin-script language.
+        wl = _wordlist_detect(text)
+        if wl:
+            return wl, 0.80
+
+        # Lingua handles English and Yoruba reliably
         result = self._detector.detect_language_of(text)
-        if result is None:
-            return "unknown", 0.0
+        if result is not None:
+            confidence_values = self._detector.compute_language_confidence_values(text)
+            confidence = 0.0
+            for cv in confidence_values:
+                if cv.language == result:
+                    confidence = cv.value
+                    break
+            if confidence >= self.confidence_threshold:
+                lang_name = _LINGUA_TO_NAME.get(result, "unknown")
+                return lang_name, confidence
 
-        # Get confidence values for all detected languages
-        confidence_values = self._detector.compute_language_confidence_values(text)
-        confidence = 0.0
-        for cv in confidence_values:
-            if cv.language == result:
-                confidence = cv.value
-                break
-
-        if confidence < self.confidence_threshold:
-            return "unknown", confidence
-
-        lang_name = _LINGUA_TO_NAME.get(result, "unknown")
-        return lang_name, confidence
+        return "unknown", 0.0
 
     def detect(self, text: str) -> str:
         """

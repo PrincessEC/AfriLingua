@@ -58,19 +58,26 @@ class RealtimePipeline:
         tgt_lang: str,
         on_result: Callable[[TranslationResult], None],
         audio_output: bool = True,
+        *,
+        whisper: Optional[WhisperASR] = None,
+        mms_asr: Optional[MMSASR] = None,
+        engine: Optional[TranslationEngine] = None,
+        mms_tts: Optional[MMSTTS] = None,
+        eng_tts: Optional[EnglishTTS] = None,
     ) -> None:
         self.src_lang = src_lang.lower()
         self.tgt_lang = tgt_lang.lower()
         self.on_result = on_result
         self.audio_output = audio_output
 
-        # Shared, lazily initialised singletons (created once per process)
-        self._whisper  = WhisperASR()
-        self._mms_asr  = MMSASR()
+        # Accept pre-loaded singletons so that models loaded at startup are
+        # reused here — avoids loading model weights a second time.
+        self._whisper  = whisper  if whisper  is not None else WhisperASR()
+        self._mms_asr  = mms_asr  if mms_asr  is not None else MMSASR()
         self._detector = LanguageDetector()
-        self._engine   = TranslationEngine()
-        self._mms_tts  = MMSTTS()
-        self._eng_tts  = EnglishTTS()
+        self._engine   = engine   if engine   is not None else TranslationEngine()
+        self._mms_tts  = mms_tts  if mms_tts  is not None else MMSTTS()
+        self._eng_tts  = eng_tts  if eng_tts  is not None else EnglishTTS()
         self._player   = AudioPlayer()
 
         self._capture: Optional[AudioCapture] = None
@@ -120,22 +127,35 @@ class RealtimePipeline:
             )
             logger.info("[NLLB %s→%s] %s", self.src_lang, self.tgt_lang, translated_text)
 
-            # 3. TTS
-            audio_b64: Optional[str] = None
-            if self.audio_output and translated_text.strip():
-                waveform, sr = self._synthesize(translated_text, self.tgt_lang)
-                self._player.play(waveform, sr)
-                audio_b64 = self._to_wav_b64(waveform, sr)
-
-            # 4. Fire result callback
+            # 3. Fire result to UI immediately — don't wait for TTS to render.
+            #    The translated text appears on screen at once.
             result = TranslationResult(
                 original_text=original_text,
                 translated_text=translated_text,
                 src_lang=self.src_lang,
                 tgt_lang=self.tgt_lang,
-                audio_b64=audio_b64,
+                audio_b64=None,   # filled in below, on the TTS thread
             )
             self.on_result(result)
+
+            # 4. TTS — run in a background thread so audio starts playing
+            #    while the speaker continues talking (simultaneous interpretation).
+            if self.audio_output and translated_text.strip():
+                def _tts_and_play(text: str, lang: str, r: TranslationResult) -> None:
+                    try:
+                        waveform, sr = self._synthesize(text, lang)
+                        self._player.play(waveform, sr)
+                        # Back-fill audio_b64 so WebSocket clients can also
+                        # receive the audio if they poll / reconnect.
+                        r.audio_b64 = self._to_wav_b64(waveform, sr)
+                    except Exception as exc:
+                        logger.error("TTS error: %s", exc, exc_info=True)
+
+                threading.Thread(
+                    target=_tts_and_play,
+                    args=(translated_text, self.tgt_lang, result),
+                    daemon=True,
+                ).start()
 
         except Exception as exc:
             logger.error("Pipeline error: %s", exc, exc_info=True)

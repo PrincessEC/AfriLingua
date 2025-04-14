@@ -39,16 +39,195 @@ Want to add another language? See [Adding a New Language](#adding-a-new-language
 
 ## Model Stack
 
-All models run on CPU only (no GPU required).
+AfriLingua supports multiple model variants per role. The defaults are chosen for CPU compatibility. Swap any model by editing `.env` — no code changes required.
 
-| Role | Model | Size |
+### Translation — NLLB-200
+
+| Model ID | Size | Peak RAM | Speed (CPU) | Recommended For |
+|---|---|---|---|---|
+| `facebook/nllb-200-distilled-600M` ⭐ | 2.5 GB | ~4 GB | ~2 s/sentence | CPU default |
+| `facebook/nllb-200-distilled-1.3B` | 5.1 GB | ~8 GB | ~5 s/sentence | GPU / high-RAM CPU |
+| `facebook/nllb-200-3.3B` | 13 GB | ~16 GB | GPU only | Maximum accuracy |
+
+```env
+# .env
+MODEL_NLLB=facebook/nllb-200-distilled-600M
+```
+
+### ASR — English (Whisper)
+
+| Model ID | Size | Peak RAM | WER | Recommended For |
+|---|---|---|---|---|
+| `openai/whisper-tiny` | 75 MB | ~1 GB | Highest | Very low-spec CPU |
+| `openai/whisper-base` | 145 MB | ~1 GB | High | Low-spec CPU |
+| `openai/whisper-small` ⭐ | 460 MB | ~2 GB | Good | CPU default |
+| `openai/whisper-medium` | 1.5 GB | ~5 GB | Better | GPU recommended |
+| `openai/whisper-large-v3` | 3.1 GB | ~10 GB | Best | GPU |
+
+```env
+# .env
+MODEL_WHISPER=openai/whisper-small
+```
+
+### ASR — African Languages (Meta MMS)
+
+| Model ID | Size | Peak RAM | Recommended For |
+|---|---|---|---|
+| `facebook/mms-300m` ⭐ | 1.2 GB | ~3 GB | CPU default |
+| `facebook/mms-1b` | 4.0 GB | ~8 GB | GPU / high-RAM CPU |
+| `facebook/mms-1b-fl102` | 4.0 GB | ~8 GB | GPU — broadest language coverage |
+
+```env
+# .env
+MODEL_MMS_ASR=facebook/mms-300m
+```
+
+### TTS — African Languages (Meta MMS-VITS)
+
+Each language has its own dedicated model. These are small and fast on both CPU and GPU.
+
+| Language | Model ID | Size |
 |---|---|---|
-| Translation | `facebook/nllb-200-distilled-600M` | ~2.5 GB |
-| ASR (African languages) | `facebook/mms-300m` | ~1.2 GB |
-| ASR (English) | `openai/whisper-small` | ~460 MB |
-| TTS (Igbo / Yoruba / Hausa) | `facebook/mms-tts-ibo/yor/hau` | ~200 MB each |
-| Voice activity detection | `snakers4/silero-vad` | ~5 MB |
-| Language detection | `lingua-language-detector` | ~50 MB |
+| Igbo | `facebook/mms-tts-ibo` | ~50 MB |
+| Yoruba | `facebook/mms-tts-yor` | ~50 MB |
+| Hausa | `facebook/mms-tts-hau` | ~50 MB |
+
+### TTS — English
+
+| Engine | Notes |
+|---|---|
+| `pyttsx3` ⭐ | Fully offline, uses OS-level speech synthesis — no download required |
+| `openai/whisper` (via MMS) | Can be swapped for a neural English TTS if preferred |
+
+### Voice Activity Detection
+
+| Model | Size | Notes |
+|---|---|---|
+| `snakers4/silero-vad` ⭐ | ~5 MB | Runs on CPU in real time; detects speech boundaries |
+
+### Language Detection
+
+| Library | Notes |
+|---|---|
+| `lingua-language-detector` ⭐ | Offline; English + Yoruba via ML model; Igbo + Hausa via word-list heuristic |
+
+---
+
+## Hardware & Device Configuration
+
+Set `DEVICE` in `.env` to control where models run:
+
+```env
+# Options: auto | cpu | cuda
+DEVICE=auto
+
+# Options: auto | float32 | float16
+TORCH_DTYPE=auto
+```
+
+| Value | Behaviour |
+|---|---|
+| `auto` | Detects CUDA at startup. Uses GPU if available, falls back to CPU. |
+| `cpu` | Forces CPU regardless of hardware. Safe on any machine. |
+| `cuda` | Forces GPU. Warns and falls back to CPU if CUDA is unavailable. |
+
+| `TORCH_DTYPE` | Behaviour |
+|---|---|
+| `auto` | `float16` on GPU (2× faster, half the VRAM); `float32` on CPU |
+| `float32` | Full precision — always safe, higher memory usage |
+| `float16` | Half precision — GPU only; do not use on CPU |
+
+### Choosing a hardware profile
+
+| Profile | Recommended settings | Expected RAM | Translation speed |
+|---|---|---|---|
+| Low-spec laptop (no GPU) | `DEVICE=cpu`, `MODEL_NLLB=…-600M`, `MODEL_WHISPER=…-base` | ~6 GB | ~3–5 s/sentence |
+| Standard laptop / desktop | `DEVICE=auto`, `MODEL_NLLB=…-600M`, `MODEL_WHISPER=…-small` | ~6–8 GB | ~1–3 s/sentence |
+| GPU workstation (8 GB VRAM) | `DEVICE=cuda`, `MODEL_NLLB=…-1.3B`, `MODEL_WHISPER=…-medium` | ~8 GB VRAM | <1 s/sentence |
+| GPU workstation (24 GB VRAM) | `DEVICE=cuda`, `MODEL_NLLB=…-3.3B`, `MODEL_WHISPER=…-large-v3` | ~20 GB VRAM | <0.5 s/sentence |
+
+---
+
+## Deployment Modes
+
+Set `DEPLOYMENT_MODE` in `.env`:
+
+```env
+# Options: web | desktop
+DEPLOYMENT_MODE=web
+```
+
+### Web Application (default)
+
+The default mode. A Gradio browser UI is served alongside a FastAPI backend. Accessible from any browser on the local network — ideal for conference rooms, shared workstations, or cloud hosting.
+
+```bash
+# Start the web UI
+python ui/app.py
+# → http://localhost:7860
+
+# Or start only the API backend
+uvicorn api.main:app --host 127.0.0.1 --port 8000
+# → http://127.0.0.1:8000/docs
+```
+
+**When to use:** shared environments, multi-user setups, browser-based access, server deployment, VS Code / browser plugin integration.
+
+**To expose on your local network:**
+```env
+# .env
+API_HOST=0.0.0.0
+```
+
+### Desktop Standalone Application
+
+A self-contained native desktop application built with PyQt6. No browser required. Suitable for offline use on a single machine. **Minimises to the system tray** and runs as a background process — right-click the tray icon to start/stop interpretation or restore the window.
+
+**Additional dependencies:**
+```bash
+pip install PyQt6 pyinstaller
+```
+
+**Run directly:**
+```bash
+python ui/desktop_app.py
+```
+
+The desktop app provides the same four surfaces as the web UI:
+
+| Tab | Description |
+|---|---|
+| 🎙️ Live Interpretation | Simultaneous interpretation — mic → translated audio + live scrolling transcript |
+| ✍️ Text Translation | Side-by-side input/output with optional TTS playback |
+| 📄 Document Translation | Browse for `.txt` / `.pdf` / `.docx`, progress bar, save translated file |
+| ⚙️ Settings | Device/GPU info, VAD chunk interval slider, model info |
+
+**System tray behaviour:**
+- Clicking **X** hides the window to the tray — the process keeps running
+- Right-click the tray icon → **Start Interpretation**, **Stop**, **Show Window**, or **Quit**
+- Left-click the tray icon → restore window
+
+**Package as a standalone executable:**
+```bash
+# Windows (.exe — no Python required on target machine)
+pyinstaller --onefile --windowed --name AfriLingua ui/desktop_app.py
+
+# macOS (.app bundle)
+pyinstaller --onefile --windowed --name AfriLingua ui/desktop_app.py
+
+# Linux (ELF binary)
+pyinstaller --onefile --name AfriLingua ui/desktop_app.py
+```
+
+The packaged executable is output to `dist/AfriLingua`. Models are downloaded on first launch and cached in `models/cache/`.
+
+**When to use:** conference interpreters, field workers, fully offline environments, or distributing AfriLingua as a standalone product without requiring a browser.
+
+### Browser Extension / Plugin
+
+The FastAPI WebSocket endpoint (`ws://127.0.0.1:8000/translate/stream`) can power a browser extension that overlays translated subtitles on top of any web meeting (Google Meet, Zoom web, Teams web). The extension streams mic audio to the local API and renders text on screen.
+
+Extension development is on the roadmap. The API contract is stable and documented at `http://127.0.0.1:8000/docs`.
 
 ---
 
@@ -209,19 +388,39 @@ The test suite covers:
 
 ## Configuration
 
-All settings are in `.env` at the project root. You can override any value without touching source code:
+All settings live in `.env` at the project root. Copy `.env.example` to `.env` and edit as needed. No source code changes are required.
 
 ```env
-# Switch models (e.g. upgrade to 1.3B when GPU is available)
-MODEL_NLLB=facebook/nllb-200-distilled-1.3B
+# ── Device ──────────────────────────────────────────────────────────────────
+DEVICE=auto          # auto | cpu | cuda
+TORCH_DTYPE=auto     # auto | float32 | float16
 
-# Change ports
+# ── Deployment ──────────────────────────────────────────────────────────────
+DEPLOYMENT_MODE=web  # web | desktop
+
+# ── Models (swap to upgrade quality or reduce memory) ───────────────────────
+MODEL_NLLB=facebook/nllb-200-distilled-600M
+MODEL_WHISPER=openai/whisper-small
+MODEL_MMS_ASR=facebook/mms-300m
+MODEL_MMS_TTS_IGBO=facebook/mms-tts-ibo
+MODEL_MMS_TTS_YORUBA=facebook/mms-tts-yor
+MODEL_MMS_TTS_HAUSA=facebook/mms-tts-hau
+
+# ── Paths ────────────────────────────────────────────────────────────────────
+HF_CACHE=./models/cache
+FINETUNED_MODEL_DIR=./data/finetuned/nllb-afrilingua
+
+# ── Audio ────────────────────────────────────────────────────────────────────
+SAMPLE_RATE=16000
+VAD_THRESHOLD=0.5
+
+# ── API / UI ─────────────────────────────────────────────────────────────────
+API_HOST=127.0.0.1
 API_PORT=8000
 GRADIO_PORT=7860
-
-# Set a custom cache directory
-HF_CACHE=D:/models/hf_cache
 ```
+
+See [Hardware & Device Configuration](#hardware--device-configuration) and [Deployment Modes](#deployment-modes) for full details on each option.
 
 ---
 
@@ -320,7 +519,8 @@ Open a GitHub issue and include:
 
 - [ ] React/TypeScript production frontend with conference-room layout
 - [ ] ONNX export + INT8 quantization for low-power devices
-- [ ] Desktop app packaging (Windows / macOS / Linux)
+- [x] Desktop app — `ui/desktop_app.py` with PyQt6 + system tray + PyInstaller packaging (Windows / macOS / Linux)
+- [ ] Browser extension — subtitle overlay for web meetings (Google Meet, Zoom, Teams)
 - [ ] Mobile app (React Native / Flutter)
 - [ ] Speaker diarization — label who is speaking in multi-speaker sessions
 - [ ] Yoruba tonal marking improvement
