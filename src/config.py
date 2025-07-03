@@ -102,19 +102,19 @@ _PROFILE_DEFAULTS: dict[str, dict[str, str]] = {
         # Large distilled models — best translation quality
         "MODEL_NLLB":    "facebook/nllb-200-distilled-1.3B",
         "MODEL_WHISPER": "openai/whisper-medium",
-        "MODEL_MMS_ASR": "facebook/mms-300m",
+        "MODEL_MMS_ASR": "facebook/mms-1b-all",
     },
     "mid": {
         # Standard distilled models — good balance of speed and quality
         "MODEL_NLLB":    "facebook/nllb-200-distilled-600M",
         "MODEL_WHISPER": "openai/whisper-small",
-        "MODEL_MMS_ASR": "facebook/mms-300m",
+        "MODEL_MMS_ASR": "facebook/mms-1b-all",
     },
     "low": {
         # Smallest footprint — runs well on CPU or integrated GPU
         "MODEL_NLLB":    "facebook/nllb-200-distilled-600M",
         "MODEL_WHISPER": "openai/whisper-base",
-        "MODEL_MMS_ASR": "facebook/mms-300m",
+        "MODEL_MMS_ASR": "facebook/mms-1b-all",
     },
 }
 _profile_defaults = _PROFILE_DEFAULTS[HARDWARE_PROFILE]
@@ -129,7 +129,7 @@ DEPLOYMENT_MODE: str = _get("DEPLOYMENT_MODE", "web").lower()
 MODEL_NLLB:        str = _get("MODEL_NLLB",         _profile_defaults["MODEL_NLLB"])
 MODEL_WHISPER:     str = _get("MODEL_WHISPER",      _profile_defaults["MODEL_WHISPER"])
 MODEL_MMS_ASR:     str = _get("MODEL_MMS_ASR",      _profile_defaults["MODEL_MMS_ASR"])
-MODEL_MMS_TTS_IGBO:   str = _get("MODEL_MMS_TTS_IGBO",   "facebook/mms-tts-ibo")
+MODEL_MMS_TTS_IGBO:   str = _get("MODEL_MMS_TTS_IGBO",   "rnjema-unima/mms-tts-ibo-baseline")
 MODEL_MMS_TTS_YORUBA: str = _get("MODEL_MMS_TTS_YORUBA", "facebook/mms-tts-yor")
 MODEL_MMS_TTS_HAUSA:  str = _get("MODEL_MMS_TTS_HAUSA",  "facebook/mms-tts-hau")
 
@@ -155,5 +155,7 @@ GRADIO_PORT: int = int(_get("GRADIO_PORT", "7860"))
 HF_CACHE.mkdir(parents=True, exist_ok=True)
 
 # tell HuggingFace libraries where to cache
-os.environ["HF_HOME"] = str(HF_CACHE)
-os.environ["TRANSFORMERS_CACHE"] = str(HF_CACHE)
+os.environ["HF_HOME"]               = str(HF_CACHE)
+os.environ["TRANSFORMERS_CACHE"]    = str(HF_CACHE)   # kept for older transformers
+os.environ["HUGGINGFACE_HUB_CACHE"] = str(HF_CACHE)   # huggingface_hub >= 0.17
+os.environ.setdefault("HF_HUB_DISABLE_SYMLINKS_WARNING", "1")

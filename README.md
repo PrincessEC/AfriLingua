@@ -29,9 +29,9 @@ AfriLingua is an open-source project that makes language barriers disappear for 
 | Language | Code | ASR | TTS | Translation |
 |---|---|---|---|---|
 | English | `eng_Latn` | Whisper-small | pyttsx3 | NLLB-200 |
-| Igbo | `ibo_Latn` | MMS-300M | MMS-TTS | NLLB-200 |
-| Yoruba | `yor_Latn` | MMS-300M | MMS-TTS | NLLB-200 |
-| Hausa | `hau_Latn` | MMS-300M | MMS-TTS | NLLB-200 |
+| Igbo | `ibo_Latn` | MMS-1B-All | MMS-TTS | NLLB-200 |
+| Yoruba | `yor_Latn` | MMS-1B-All | MMS-TTS | NLLB-200 |
+| Hausa | `hau_Latn` | MMS-1B-All | MMS-TTS | NLLB-200 |
 
 Want to add another language? See [Adding a New Language](#adding-a-new-language).
 
@@ -73,14 +73,18 @@ MODEL_WHISPER=openai/whisper-small
 
 | Model ID | Size | Peak RAM | Recommended For |
 |---|---|---|---|
-| `facebook/mms-300m` ⭐ | 1.2 GB | ~3 GB | CPU default |
-| `facebook/mms-1b` | 4.0 GB | ~8 GB | GPU / high-RAM CPU |
-| `facebook/mms-1b-fl102` | 4.0 GB | ~8 GB | GPU — broadest language coverage |
+| `facebook/mms-1b-all` ⭐ | ~4.0 GB | ~8 GB | Default ASR checkpoint; best coverage/accuracy |
+| `facebook/mms-1b-l1107` | ~4.0 GB | ~8 GB | ASR checkpoint for 1,100+ languages |
+| `facebook/mms-1b-fl102` | ~4.0 GB | ~8 GB | ASR checkpoint for a smaller language set |
 
 ```env
 # .env
-MODEL_MMS_ASR=facebook/mms-300m
+MODEL_MMS_ASR=facebook/mms-1b-all
 ```
+
+`facebook/mms-300m` is a pretrained MMS checkpoint, not a fine-tuned ASR
+checkpoint. It is useful for fine-tuning experiments, but it does not include
+the ASR adapters required by runtime speech recognition.
 
 ### TTS — African Languages (Meta MMS-VITS)
 
@@ -88,9 +92,13 @@ Each language has its own dedicated model. These are small and fast on both CPU 
 
 | Language | Model ID | Size |
 |---|---|---|
-| Igbo | `facebook/mms-tts-ibo` | ~50 MB |
+| Igbo | `rnjema-unima/mms-tts-ibo-baseline` | ~50 MB |
 | Yoruba | `facebook/mms-tts-yor` | ~50 MB |
 | Hausa | `facebook/mms-tts-hau` | ~50 MB |
+
+Meta does not currently publish an official `facebook/mms-tts-ibo` checkpoint,
+so AfriLingua defaults to a public community Igbo VITS checkpoint. You can
+replace it with another compatible model by changing `MODEL_MMS_TTS_IGBO`.
 
 ### TTS — English
 
@@ -297,7 +305,7 @@ source .venv/bin/activate
 pip install -r requirements.txt
 ```
 
-Models are downloaded automatically from HuggingFace on first use and cached to `models/cache/`. Total download is approximately 5–6 GB.
+Models are downloaded automatically from HuggingFace on first use and cached to `models/cache/`. Total download is approximately 7–8 GB with the default ASR checkpoint.
 
 ---
 
@@ -401,8 +409,8 @@ DEPLOYMENT_MODE=web  # web | desktop
 # ── Models (swap to upgrade quality or reduce memory) ───────────────────────
 MODEL_NLLB=facebook/nllb-200-distilled-600M
 MODEL_WHISPER=openai/whisper-small
-MODEL_MMS_ASR=facebook/mms-300m
-MODEL_MMS_TTS_IGBO=facebook/mms-tts-ibo
+MODEL_MMS_ASR=facebook/mms-1b-all
+MODEL_MMS_TTS_IGBO=rnjema-unima/mms-tts-ibo-baseline
 MODEL_MMS_TTS_YORUBA=facebook/mms-tts-yor
 MODEL_MMS_TTS_HAUSA=facebook/mms-tts-hau
 

@@ -18,6 +18,7 @@ from src.config import (
     MODEL_MMS_TTS_YORUBA,
     MODEL_MMS_TTS_HAUSA,
 )
+from src.hf_compat import fp32_dtype_kwargs
 
 logger = logging.getLogger(__name__)
 
@@ -57,12 +58,18 @@ class MMSTTS:
                 f"Supported: {SUPPORTED_LANGUAGES}"
             )
         logger.info("Loading MMS TTS for '%s' from %s …", lang, model_id)
-        tokenizer = AutoTokenizer.from_pretrained(model_id, cache_dir=str(HF_CACHE))
-        model = VitsModel.from_pretrained(
-            model_id,
-            torch_dtype=torch.float32,
-            cache_dir=str(HF_CACHE),
-        )
+        try:
+            tokenizer = AutoTokenizer.from_pretrained(model_id, cache_dir=str(HF_CACHE))
+            model = VitsModel.from_pretrained(
+                model_id,
+                cache_dir=str(HF_CACHE),
+                **fp32_dtype_kwargs(),
+            )
+        except OSError as exc:
+            raise ValueError(
+                f"Could not load MMS TTS model {model_id!r} for {lang!r}. "
+                f"Check MODEL_MMS_TTS_{lang.upper()} in your .env file."
+            ) from exc
         model.eval()
         self._tokenizers[lang] = tokenizer
         self._models[lang] = model

@@ -17,6 +17,7 @@ import torch
 from transformers import AutoModelForSeq2SeqLM, AutoTokenizer, pipeline
 
 from src.config import DEVICE, FINETUNED_MODEL_DIR, HF_CACHE, MODEL_NLLB
+from src.hf_compat import fp32_dtype_kwargs
 
 logger = logging.getLogger(__name__)
 
@@ -80,8 +81,8 @@ class TranslationEngine:
         logger.info("Loading NLLB model onto %s …", DEVICE)
         self._model = AutoModelForSeq2SeqLM.from_pretrained(
             path,
-            torch_dtype=torch.float32,
             cache_dir=str(HF_CACHE),
+            **fp32_dtype_kwargs(),
         )
         self._model.eval()
         logger.info("NLLB model ready.")
