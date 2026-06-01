@@ -19,7 +19,7 @@ Example:
 """
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import asdict, dataclass, field
 import json
 import logging
 import os
@@ -32,6 +32,7 @@ logger = logging.getLogger(__name__)
 
 _ROOT = Path(__file__).resolve().parent.parent
 load_dotenv(_ROOT / ".env")
+_USER_LANGUAGE_REGISTRY_FILE = _ROOT / "data" / "languages.json"
 
 
 @dataclass(frozen=True)
@@ -121,6 +122,12 @@ def _coerce_spec(raw: dict[str, Any]) -> LanguageSpec:
 
 def _iter_extra_specs() -> Iterable[LanguageSpec]:
     payloads: list[Any] = []
+    if _USER_LANGUAGE_REGISTRY_FILE.exists():
+        try:
+            payloads.append(json.loads(_USER_LANGUAGE_REGISTRY_FILE.read_text(encoding="utf-8")))
+        except Exception as exc:
+            logger.warning("Could not read user language registry %s: %s", _USER_LANGUAGE_REGISTRY_FILE, exc)
+
     registry_file = os.environ.get("LANGUAGE_REGISTRY_FILE", "").strip()
     if registry_file:
         path = Path(registry_file)
@@ -204,3 +211,109 @@ TEXT_LANGUAGE_CHOICES: list[str] = SUPPORTED_LANGUAGES
 ASR_LANGUAGE_CHOICES: list[str] = [
     name for name, spec in LANGUAGE_REGISTRY.items() if spec.supports_asr
 ]
+
+
+def _refresh_language_views() -> None:
+    LANGUAGE_ALIASES.clear()
+    for name, spec in LANGUAGE_REGISTRY.items():
+        LANGUAGE_ALIASES[_norm(name)] = name
+        LANGUAGE_ALIASES[spec.nllb_code.lower()] = name
+        for alias in spec.aliases:
+            LANGUAGE_ALIASES[_norm(alias)] = name
+
+    LANG_CODES.clear()
+    LANG_CODES.update({name: spec.nllb_code for name, spec in LANGUAGE_REGISTRY.items()})
+    CODE_TO_LANG.clear()
+    CODE_TO_LANG.update({spec.nllb_code.lower(): name for name, spec in LANGUAGE_REGISTRY.items()})
+    SUPPORTED_LANGUAGES.clear()
+    SUPPORTED_LANGUAGES.extend(LANGUAGE_REGISTRY.keys())
+    ASR_LANG_CODES.clear()
+    ASR_LANG_CODES.update(
+        {
+            name: spec.mms_asr_code
+            for name, spec in LANGUAGE_REGISTRY.items()
+            if spec.mms_asr_code
+        }
+    )
+    TTS_MODEL_IDS.clear()
+    TTS_MODEL_IDS.update(
+        {
+            name: spec.mms_tts_model
+            for name, spec in LANGUAGE_REGISTRY.items()
+            if spec.mms_tts_model
+        }
+    )
+    ASR_LANGUAGE_CHOICES.clear()
+    ASR_LANGUAGE_CHOICES.extend(
+        name for name, spec in LANGUAGE_REGISTRY.items() if spec.supports_asr
+    )
+
+
+def _persist_user_language(spec: LanguageSpec) -> None:
+    _USER_LANGUAGE_REGISTRY_FILE.parent.mkdir(parents=True, exist_ok=True)
+    payload: list[dict[str, Any]] = []
+    if _USER_LANGUAGE_REGISTRY_FILE.exists():
+        try:
+            raw = json.loads(_USER_LANGUAGE_REGISTRY_FILE.read_text(encoding="utf-8"))
+            if isinstance(raw, list):
+                payload = [item for item in raw if isinstance(item, dict)]
+        except Exception:
+            payload = []
+
+    spec_dict = asdict(spec)
+    spec_dict["aliases"] = list(spec.aliases)
+    spec_dict["detection_words"] = list(spec.detection_words)
+    payload = [item for item in payload if _norm(str(item.get("name", ""))) != spec.name]
+    payload.append(spec_dict)
+    _USER_LANGUAGE_REGISTRY_FILE.write_text(
+        json.dumps(payload, ensure_ascii=False, indent=2),
+        encoding="utf-8",
+    )
+
+
+def register_language(spec: LanguageSpec, *, persist: bool = True) -> LanguageSpec:
+    """Register a language at runtime and optionally persist it for future launches."""
+    normalized = LanguageSpec(
+        name=_norm(spec.name),
+        nllb_code=spec.nllb_code.strip(),
+        mms_asr_code=spec.mms_asr_code.strip() if spec.mms_asr_code else None,
+        mms_tts_model=spec.mms_tts_model.strip() if spec.mms_tts_model else None,
+        whisper_lang=spec.whisper_lang.strip() if spec.whisper_lang else None,
+        aliases=tuple(_norm(alias) for alias in spec.aliases if alias.strip()),
+        detection_words=tuple(word.strip().lower() for word in spec.detection_words if word.strip()),
+    )
+    if not normalized.name:
+        raise ValueError("Language name is required.")
+    if not normalized.nllb_code:
+        raise ValueError("NLLB language code is required.")
+
+    LANGUAGE_REGISTRY[normalized.name] = normalized
+    _refresh_language_views()
+    if persist:
+        _persist_user_language(normalized)
+    return normalized
+
+
+def register_language_from_values(
+    *,
+    name: str,
+    nllb_code: str,
+    mms_asr_code: str = "",
+    mms_tts_model: str = "",
+    whisper_lang: str = "",
+    aliases: str = "",
+    detection_words: str = "",
+) -> LanguageSpec:
+    split_aliases = tuple(item.strip() for item in aliases.split(",") if item.strip())
+    split_words = tuple(item.strip() for item in detection_words.split(",") if item.strip())
+    return register_language(
+        LanguageSpec(
+            name=name,
+            nllb_code=nllb_code,
+            mms_asr_code=mms_asr_code or None,
+            mms_tts_model=mms_tts_model or None,
+            whisper_lang=whisper_lang or None,
+            aliases=split_aliases,
+            detection_words=split_words,
+        )
+    )

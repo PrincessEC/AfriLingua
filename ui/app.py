@@ -9,7 +9,6 @@ import time
 from html import escape
 from pathlib import Path
 
-# Configure project imports and Hugging Face cache paths before importing Gradio.
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from src.config import GRADIO_PORT  # noqa: E402
@@ -61,135 +60,255 @@ _loading_state: dict[str, object] = {
 }
 
 _CSS = """
+:root {
+    --al-bg: #f6f5ef;
+    --al-surface: #ffffff;
+    --al-surface-2: #f0f2ea;
+    --al-ink: #171f1b;
+    --al-muted: #657066;
+    --al-line: #d9ded2;
+    --al-green: #1d6f5f;
+    --al-rust: #c45d35;
+    --al-indigo: #485286;
+    --al-warn: #806018;
+    --al-danger: #9a3412;
+}
+html[data-afri-theme="dark"] {
+    --al-bg: #101411;
+    --al-surface: #171d19;
+    --al-surface-2: #202821;
+    --al-ink: #edf2ec;
+    --al-muted: #aab5aa;
+    --al-line: #344038;
+    --al-green: #69c3a6;
+    --al-rust: #e38a62;
+    --al-indigo: #9aa6e8;
+    --al-warn: #dfbd6a;
+    --al-danger: #ef916f;
+}
+body, .gradio-container {
+    background: var(--al-bg) !important;
+    color: var(--al-ink) !important;
+}
 .gradio-container {
-    max-width: 1180px !important;
+    max-width: 1280px !important;
 }
-.al-workspace-shell {
+.al-shell {
+    padding: 20px 4px 8px;
+}
+.al-topbar {
     display: flex;
-    align-items: flex-end;
+    align-items: center;
     justify-content: space-between;
-    gap: 18px;
-    padding: 22px 4px 18px;
-    border-bottom: 1px solid rgba(107, 116, 108, 0.22);
-    margin-bottom: 14px;
+    gap: 20px;
+    padding-bottom: 16px;
+    border-bottom: 1px solid var(--al-line);
 }
-.al-brand-name {
+.al-brand {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    min-width: 0;
+}
+.al-mark {
+    width: 42px;
+    height: 42px;
+    border-radius: 8px;
+    background: linear-gradient(135deg, var(--al-green), var(--al-rust));
+    box-shadow: 0 10px 24px rgba(29, 111, 95, 0.22);
+}
+.al-brand h1 {
     margin: 0;
-    color: #17201b;
-    font-size: 30px;
+    color: var(--al-ink);
+    font-size: 27px;
     line-height: 1.1;
     font-weight: 760;
 }
-.al-brand-subtitle {
-    margin: 6px 0 0;
-    color: #5e6a61;
-    font-size: 13px;
+.al-brand p {
+    margin: 4px 0 0;
+    color: var(--al-muted);
+    font-size: 12px;
 }
-.al-workspace-badge {
-    border: 1px solid #b8c9bd;
-    color: #1d6f5f;
-    background: #eef6f1;
+.al-theme-switch {
+    display: inline-flex;
+    gap: 4px;
+    padding: 4px;
+    border: 1px solid var(--al-line);
+    border-radius: 8px;
+    background: var(--al-surface);
+}
+.al-theme-button {
+    border: 0;
+    background: transparent;
+    color: var(--al-muted);
+    border-radius: 6px !important;
     padding: 7px 11px;
-    border-radius: 999px;
     font-size: 12px;
     font-weight: 700;
-    white-space: nowrap;
+    cursor: pointer;
+}
+.al-theme-button[data-active="true"] {
+    color: #ffffff;
+    background: var(--al-green);
 }
 .al-resource-strip {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) 180px;
+    grid-template-columns: minmax(0, 1fr) 190px;
     align-items: center;
-    gap: 16px;
-    margin: 8px 0 16px;
-    padding: 12px 14px;
-    border: 1px solid #d9dfd2;
+    gap: 18px;
+    margin: 16px 0 14px;
+    padding: 13px 15px;
+    border: 1px solid var(--al-line);
     border-radius: 8px;
-    background: #fbfcf8;
+    background: var(--al-surface);
 }
 .al-resource-copy {
     display: flex;
     align-items: baseline;
-    gap: 12px;
+    gap: 13px;
     min-width: 0;
     flex-wrap: wrap;
 }
 .al-resource-kicker {
-    color: #7b857b;
+    color: var(--al-muted);
     font-size: 11px;
-    font-weight: 700;
+    font-weight: 800;
     text-transform: uppercase;
-    letter-spacing: 0;
 }
 .al-resource-copy strong {
-    color: #17201b;
+    color: var(--al-ink);
     font-size: 14px;
 }
 .al-resource-copy span:last-child {
-    color: #5e6a61;
+    color: var(--al-muted);
     font-size: 12px;
 }
 .al-resource-meter {
     height: 8px;
     border-radius: 999px;
-    background: #e5e8df;
+    background: var(--al-surface-2);
     overflow: hidden;
 }
 .al-resource-meter span {
     display: block;
     height: 100%;
     border-radius: inherit;
-    background: linear-gradient(90deg, #1d6f5f, #d95f43);
+    background: linear-gradient(90deg, var(--al-green), var(--al-rust));
 }
 .al-loader {
-    margin: 6px 0 14px;
+    margin: 0 0 14px;
     padding: 12px 14px;
-    border: 1px solid #f0d5c9;
+    border: 1px solid #e6c8b8;
     border-radius: 8px;
-    background: #fff7f2;
+    background: color-mix(in srgb, var(--al-rust) 8%, var(--al-surface));
 }
 .al-loader-top {
     display: flex;
     justify-content: space-between;
     gap: 12px;
-    color: #17201b;
+    color: var(--al-ink);
     font-size: 13px;
-    font-weight: 700;
+    font-weight: 750;
 }
 .al-loader-track {
     height: 7px;
     margin-top: 10px;
-    background: #efd8cc;
+    background: var(--al-surface-2);
     border-radius: 999px;
     overflow: hidden;
 }
 .al-loader-track span {
     display: block;
     height: 100%;
-    background: #d95f43;
+    background: var(--al-rust);
 }
 .al-live-status {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    min-height: 42px;
     border-radius: 8px;
     padding: 10px 12px;
-    border: 1px solid #d9dfd2;
-    background: #fbfcf8;
-    color: #17201b;
+    border: 1px solid var(--al-line);
+    background: var(--al-surface);
+    color: var(--al-ink);
     font-size: 13px;
-    font-weight: 700;
+    font-weight: 750;
 }
 .al-live-status-live {
-    border-color: #9fc7b5;
-    background: #eef7f2;
-    color: #1d6f5f;
+    border-color: color-mix(in srgb, var(--al-green) 45%, var(--al-line));
+    background: color-mix(in srgb, var(--al-green) 10%, var(--al-surface));
+    color: var(--al-green);
 }
 .al-live-status-warn {
-    border-color: #e4bd86;
-    background: #fff7e8;
-    color: #7a5c00;
+    border-color: color-mix(in srgb, var(--al-warn) 45%, var(--al-line));
+    background: color-mix(in srgb, var(--al-warn) 10%, var(--al-surface));
+    color: var(--al-warn);
 }
 .al-live-status-error {
-    border-color: #efb1a2;
-    background: #fff1ed;
-    color: #9a3412;
+    border-color: color-mix(in srgb, var(--al-danger) 45%, var(--al-line));
+    background: color-mix(in srgb, var(--al-danger) 10%, var(--al-surface));
+    color: var(--al-danger);
+}
+.al-live-main {
+    display: inline-flex;
+    align-items: center;
+    gap: 9px;
+    min-width: 0;
+}
+.al-live-elapsed {
+    color: var(--al-muted);
+    font-variant-numeric: tabular-nums;
+}
+.al-listening-dot {
+    width: 9px;
+    height: 9px;
+    border-radius: 999px;
+    background: var(--al-green);
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--al-green) 42%, transparent);
+    animation: alPulse 1.35s infinite;
+    flex: 0 0 auto;
+}
+@keyframes alPulse {
+    70% { box-shadow: 0 0 0 9px transparent; }
+    100% { box-shadow: 0 0 0 0 transparent; }
+}
+.al-section-title {
+    color: var(--al-ink);
+    font-size: 16px;
+    font-weight: 780;
+    margin: 2px 0 12px;
+}
+.al-subtitle {
+    color: var(--al-muted);
+    font-size: 12px;
+    margin: -6px 0 12px;
+}
+.al-mini-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 10px;
+    margin-bottom: 12px;
+}
+.al-mini-stat {
+    border: 1px solid var(--al-line);
+    border-radius: 8px;
+    padding: 11px 12px;
+    background: var(--al-surface);
+}
+.al-mini-stat span {
+    display: block;
+    color: var(--al-muted);
+    font-size: 11px;
+    font-weight: 750;
+    text-transform: uppercase;
+}
+.al-mini-stat strong {
+    display: block;
+    color: var(--al-ink);
+    font-size: 15px;
+    margin-top: 4px;
 }
 textarea, input, select, button {
     border-radius: 8px !important;
@@ -197,46 +316,13 @@ textarea, input, select, button {
 footer {
     display: none !important;
 }
-html[data-afri-theme="dark"] .gradio-container {
-    background: #111714 !important;
-    color: #edf2ec !important;
-}
-html[data-afri-theme="dark"] .al-brand-name {
-    color: #edf2ec;
-}
-html[data-afri-theme="dark"] .al-brand-subtitle {
-    color: #afbbaf;
-}
-html[data-afri-theme="dark"] .al-workspace-shell {
-    border-bottom-color: rgba(197, 207, 196, 0.18);
-}
-html[data-afri-theme="dark"] .al-workspace-badge,
-html[data-afri-theme="dark"] .al-resource-strip,
-html[data-afri-theme="dark"] .al-live-status {
-    background: #17201b;
-    border-color: #304137;
-}
-html[data-afri-theme="dark"] .al-resource-copy strong,
-html[data-afri-theme="dark"] .al-live-status {
-    color: #edf2ec;
-}
-html[data-afri-theme="dark"] .al-resource-copy span:last-child,
-html[data-afri-theme="dark"] .al-resource-kicker {
-    color: #afbbaf;
-}
-html[data-afri-theme="dark"] .al-loader {
-    background: #241b16;
-    border-color: #5a3528;
-}
-html[data-afri-theme="dark"] .al-loader-top {
-    color: #f6eee8;
-}
-@media (max-width: 720px) {
-    .al-workspace-shell {
+@media (max-width: 760px) {
+    .al-topbar {
         align-items: flex-start;
         flex-direction: column;
     }
-    .al-resource-strip {
+    .al-resource-strip,
+    .al-mini-grid {
         grid-template-columns: 1fr;
     }
 }
@@ -245,30 +331,62 @@ html[data-afri-theme="dark"] .al-loader-top {
 _THEME_HEAD = """
 <script>
 (function () {
+  function selectedTheme(choice) {
+    return choice || localStorage.getItem("afrilingua-theme") || "System";
+  }
   function applyTheme(choice) {
-    var selected = choice || localStorage.getItem("afrilingua-theme") || "System";
+    var selected = selectedTheme(choice);
     var dark = selected === "Dark" ||
       (selected === "System" && window.matchMedia("(prefers-color-scheme: dark)").matches);
     document.documentElement.dataset.afriTheme = dark ? "dark" : "light";
+    document.documentElement.dataset.afriThemeChoice = selected;
+    document.querySelectorAll("[data-afri-theme-choice]").forEach(function (button) {
+      button.dataset.active = button.dataset.afriThemeChoice === selected ? "true" : "false";
+    });
   }
-  applyTheme();
   window.afriLinguaApplyTheme = function (choice) {
     localStorage.setItem("afrilingua-theme", choice || "System");
     applyTheme(choice);
-    return "Theme set to " + (choice || "System") + ".";
   };
+  document.addEventListener("click", function (event) {
+    var button = event.target.closest("[data-afri-theme-choice]");
+    if (button) {
+      event.preventDefault();
+      window.afriLinguaApplyTheme(button.dataset.afriThemeChoice);
+    }
+  });
+  applyTheme();
+  new MutationObserver(function () { applyTheme(); }).observe(document.documentElement, {
+    childList: true,
+    subtree: true
+  });
 })();
 </script>
 """
 
-_THEME_JS = """
-(theme) => {
-  if (window.afriLinguaApplyTheme) {
-    return window.afriLinguaApplyTheme(theme);
-  }
-  return "Theme set to " + (theme || "System") + ".";
-}
-"""
+
+def _theme_switch_html() -> str:
+    return (
+        '<div class="al-theme-switch" aria-label="Theme">'
+        '<button class="al-theme-button" data-afri-theme-choice="System" type="button">System</button>'
+        '<button class="al-theme-button" data-afri-theme-choice="Light" type="button">Light</button>'
+        '<button class="al-theme-button" data-afri-theme-choice="Dark" type="button">Dark</button>'
+        '</div>'
+    )
+
+
+def _shell_html() -> str:
+    return (
+        '<div class="al-shell">'
+        '<div class="al-topbar">'
+        '<div class="al-brand">'
+        '<div class="al-mark"></div>'
+        '<div><h1>AfriLingua</h1><p>Local interpretation workspace</p></div>'
+        '</div>'
+        f'{_theme_switch_html()}'
+        '</div>'
+        '</div>'
+    )
 
 
 def _waveform_to_gradio_audio(waveform: np.ndarray, sample_rate: int):
@@ -380,49 +498,63 @@ def _refresh_settings() -> tuple[str, str]:
     return current_resource_strip(), _web_runtime.settings_report()
 
 
-def _theme_label(theme_name: str) -> str:
-    return f"Theme set to {theme_name or 'System'}."
-
-
 def build_ui() -> gr.Blocks:
     src_choices = ["auto-detect"] + _LANGUAGE_CHOICES
 
     with gr.Blocks(title="AfriLingua Workspace", fill_width=True) as demo:
-        gr.HTML(
-            '<header class="al-workspace-shell">'
-            '<div>'
-            '<h1 class="al-brand-name">AfriLingua</h1>'
-            '<p class="al-brand-subtitle">Local interpretation workspace for English, Igbo, Yoruba, and Hausa.</p>'
-            '</div>'
-            '<span class="al-workspace-badge">Private local workspace</span>'
-            '</header>'
-        )
-
+        gr.HTML(_shell_html())
         resource_strip = gr.HTML(value=current_resource_strip(), label="")
         loading_banner = gr.HTML(value=_loader_html(0, TOTAL_STEPS, "Preparing workspace"), label="")
 
-        with gr.Tab("Live"):
-            live_status = gr.HTML(value=_web_runtime.refresh()[0], label="")
-            with gr.Row():
-                live_src = gr.Dropdown(_LANGUAGE_CHOICES, value="english", label="Source")
-                live_tgt = gr.Dropdown(_LANGUAGE_CHOICES, value="igbo", label="Target")
-                mic_select = gr.Dropdown(
-                    choices=_web_runtime.microphone_choices(),
-                    value="Default input",
-                    label="Microphone",
-                )
-            with gr.Row():
-                speak_translation = gr.Checkbox(value=True, label="Speak translation")
-                start_btn = gr.Button("Start", variant="primary")
-                pause_btn = gr.Button("Pause", variant="secondary")
-                clear_btn = gr.Button("Clear", variant="secondary")
-                reset_btn = gr.Button("Reset workspace", variant="stop")
-            live_transcript = gr.Textbox(
-                label="Live transcript",
-                value=_web_runtime.transcript_text(),
-                lines=18,
-                interactive=False,
+        with gr.Tab("Live Studio"):
+            gr.HTML(
+                '<div class="al-mini-grid">'
+                '<div class="al-mini-stat"><span>Session</span><strong>Live Studio</strong></div>'
+                '<div class="al-mini-stat"><span>Input</span><strong>Server audio</strong></div>'
+                '<div class="al-mini-stat"><span>Privacy</span><strong>Local runtime</strong></div>'
+                '</div>'
             )
+            with gr.Row():
+                with gr.Column(scale=2):
+                    live_status = gr.HTML(value=_web_runtime.refresh()[0], label="")
+                    with gr.Row():
+                        live_src = gr.Dropdown(_LANGUAGE_CHOICES, value="english", label="Source")
+                        live_tgt = gr.Dropdown(_LANGUAGE_CHOICES, value="igbo", label="Target")
+                    with gr.Row():
+                        mic_select = gr.Dropdown(
+                            choices=_web_runtime.microphone_choices(),
+                            value="Default microphone",
+                            label="Microphone",
+                        )
+                        output_select = gr.Dropdown(
+                            choices=_web_runtime.output_choices(),
+                            value="Default speakers",
+                            label="Output",
+                        )
+                    with gr.Row():
+                        speak_translation = gr.Checkbox(value=True, label="Speak translation")
+                        start_btn = gr.Button("Start listening", variant="primary")
+                        pause_btn = gr.Button("Pause", variant="secondary")
+                        reset_btn = gr.Button("Reset", variant="stop")
+                    live_transcript = gr.Textbox(
+                        label="Transcript",
+                        value=_web_runtime.transcript_text(),
+                        lines=18,
+                        interactive=False,
+                    )
+                with gr.Column(scale=1):
+                    gr.HTML('<div class="al-section-title">Session</div>')
+                    session_title = gr.Textbox(label="Title", value=_web_runtime.session_title())
+                    saved_sessions = gr.Dropdown(
+                        choices=_web_runtime.session_choices(),
+                        label="Saved sessions",
+                    )
+                    with gr.Row():
+                        save_session_btn = gr.Button("Save", variant="primary")
+                        load_session_btn = gr.Button("Load", variant="secondary")
+                        new_session_btn = gr.Button("New", variant="secondary")
+                    clear_btn = gr.Button("Clear transcript", variant="secondary")
+                    session_status = gr.HTML(value="", label="")
 
         with gr.Tab("Text"):
             with gr.Row():
@@ -430,13 +562,8 @@ def build_ui() -> gr.Blocks:
                 txt_tgt = gr.Dropdown(_LANGUAGE_CHOICES, value="yoruba", label="Target")
                 play_tts = gr.Checkbox(label="Play audio", value=True)
             with gr.Row():
-                txt_input = gr.Textbox(label="Input", lines=9, placeholder="Type or paste text here...")
-                txt_output = gr.Textbox(
-                    label="Translation",
-                    lines=9,
-                    interactive=False,
-                    placeholder="Translation will appear here...",
-                )
+                txt_input = gr.Textbox(label="Input", lines=10, placeholder="Type or paste text here...")
+                txt_output = gr.Textbox(label="Translation", lines=10, interactive=False)
             with gr.Row():
                 txt_btn = gr.Button("Translate", variant="primary")
                 txt_status = gr.Markdown("")
@@ -454,30 +581,77 @@ def build_ui() -> gr.Blocks:
 
         with gr.Tab("Settings"):
             with gr.Row():
-                theme_select = gr.Dropdown(["System", "Dark", "Light"], value="System", label="Theme")
-                refresh_devices_btn = gr.Button("Refresh microphones", variant="secondary")
-                refresh_settings_btn = gr.Button("Refresh runtime", variant="secondary")
-                clear_cache_btn = gr.Button("Clear GPU cache", variant="secondary")
-            settings_status = gr.HTML(value="", label="")
-            theme_status = gr.Markdown("")
-            settings_report = gr.Textbox(
-                label="Runtime diagnostics",
-                value=_web_runtime.settings_report(),
-                lines=20,
-                interactive=False,
-            )
+                with gr.Column(scale=1):
+                    gr.HTML('<div class="al-section-title">Appearance</div>' + _theme_switch_html())
+                    gr.HTML('<div class="al-section-title">Audio Routing</div>')
+                    refresh_devices_btn = gr.Button("Refresh audio devices", variant="secondary")
+                    clear_cache_btn = gr.Button("Clear GPU cache", variant="secondary")
+                    settings_status = gr.HTML(value="", label="")
+                with gr.Column(scale=2):
+                    settings_report = gr.Textbox(
+                        label="Runtime diagnostics",
+                        value=_web_runtime.settings_report(),
+                        lines=14,
+                        interactive=False,
+                    )
+                    refresh_settings_btn = gr.Button("Refresh runtime", variant="secondary")
+
+            with gr.Accordion("Languages", open=False):
+                language_status = gr.HTML(value="", label="")
+                language_report = gr.Textbox(
+                    label="Configured languages",
+                    value=_web_runtime.language_summary(),
+                    lines=8,
+                    interactive=False,
+                )
+                with gr.Row():
+                    lang_name = gr.Textbox(label="Name", placeholder="swahili")
+                    lang_nllb = gr.Textbox(label="NLLB code", placeholder="swh_Latn")
+                    lang_asr = gr.Textbox(label="MMS ASR code", placeholder="swh")
+                with gr.Row():
+                    lang_tts = gr.Textbox(label="MMS TTS model", placeholder="facebook/mms-tts-swh")
+                    lang_whisper = gr.Textbox(label="Whisper code", placeholder="en")
+                lang_aliases = gr.Textbox(label="Aliases", placeholder="kiswahili, sw")
+                lang_words = gr.Textbox(label="Detection words", placeholder="habari, asante")
+                add_language_btn = gr.Button("Add language", variant="primary")
+
+            with gr.Accordion("Models", open=False):
+                model_status = gr.HTML(value="", label="")
+                with gr.Row():
+                    model_role = gr.Dropdown(
+                        ["translation", "english-asr", "mms-asr", "mms-tts"],
+                        value="translation",
+                        label="Model role",
+                    )
+                    model_id = gr.Textbox(label="Hugging Face model ID", placeholder="facebook/nllb-200-distilled-600M")
+                cache_model_btn = gr.Button("Cache model", variant="primary")
 
         start_btn.click(
             fn=_web_runtime.start_live,
-            inputs=[live_src, live_tgt, mic_select, speak_translation],
+            inputs=[live_src, live_tgt, mic_select, output_select, speak_translation],
             outputs=[live_status, live_transcript, resource_strip],
         )
         pause_btn.click(fn=_web_runtime.stop_live, inputs=[], outputs=[live_status, live_transcript, resource_strip])
-        clear_btn.click(fn=_web_runtime.clear_transcript, inputs=[], outputs=[live_transcript, live_status])
+        clear_btn.click(fn=_web_runtime.clear_transcript, inputs=[], outputs=[live_transcript, session_status])
         reset_btn.click(
             fn=_web_runtime.reset_workspace,
             inputs=[],
             outputs=[live_status, live_transcript, resource_strip, settings_report],
+        )
+        save_session_btn.click(
+            fn=_web_runtime.save_current_session,
+            inputs=[session_title],
+            outputs=[session_status, saved_sessions],
+        )
+        load_session_btn.click(
+            fn=_web_runtime.load_saved_session,
+            inputs=[saved_sessions],
+            outputs=[live_status, live_transcript, session_title, saved_sessions],
+        )
+        new_session_btn.click(
+            fn=_web_runtime.new_session,
+            inputs=[],
+            outputs=[live_status, live_transcript, session_title, saved_sessions],
         )
         txt_btn.click(
             fn=text_translate,
@@ -492,8 +666,13 @@ def build_ui() -> gr.Blocks:
         doc_btn.click(fn=doc_translate, inputs=[doc_upload, doc_src, doc_tgt], outputs=[doc_preview, doc_download])
         refresh_settings_btn.click(fn=_refresh_settings, inputs=[], outputs=[resource_strip, settings_report])
         clear_cache_btn.click(fn=_web_runtime.clear_cache, inputs=[], outputs=[settings_status, resource_strip, settings_report])
-        refresh_devices_btn.click(fn=_web_runtime.refresh_devices, inputs=[], outputs=[mic_select])
-        theme_select.change(fn=_theme_label, inputs=[theme_select], outputs=[theme_status], js=_THEME_JS)
+        refresh_devices_btn.click(fn=_web_runtime.refresh_devices, inputs=[], outputs=[mic_select, output_select])
+        add_language_btn.click(
+            fn=_web_runtime.add_language,
+            inputs=[lang_name, lang_nllb, lang_asr, lang_tts, lang_whisper, lang_aliases, lang_words],
+            outputs=[language_status, language_report, live_src, live_tgt, txt_src, txt_tgt, doc_src, doc_tgt],
+        )
+        cache_model_btn.click(fn=_web_runtime.cache_model, inputs=[model_id, model_role], outputs=[model_status, settings_report])
 
         timer = gr.Timer(value=1.5)
         timer.tick(fn=_web_runtime.refresh, inputs=[], outputs=[live_status, live_transcript, resource_strip])

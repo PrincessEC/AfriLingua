@@ -66,6 +66,7 @@ class RealtimePipeline:
         eng_tts: Optional[EnglishTTS] = None,
         local_playback: bool = True,
         input_device: int | str | None = None,
+        output_device: int | str | None = None,
     ) -> None:
         self.src_lang = src_lang.lower()
         self.tgt_lang = tgt_lang.lower()
@@ -73,6 +74,7 @@ class RealtimePipeline:
         self.audio_output = audio_output
         self.local_playback = local_playback
         self.input_device = input_device
+        self.output_device = output_device
 
         # Accept pre-loaded singletons so that models loaded at startup are
         # reused here — avoids loading model weights a second time.
@@ -82,7 +84,7 @@ class RealtimePipeline:
         self._engine   = engine   if engine   is not None else TranslationEngine()
         self._mms_tts  = mms_tts  if mms_tts  is not None else MMSTTS()
         self._eng_tts  = eng_tts  if eng_tts  is not None else EnglishTTS()
-        self._player   = AudioPlayer()
+        self._player   = AudioPlayer(output_device=output_device)
 
         self._capture: Optional[AudioCapture] = None
         self._lock = threading.Lock()

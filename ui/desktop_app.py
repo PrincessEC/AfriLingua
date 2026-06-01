@@ -74,7 +74,9 @@ from src.runtime.resources import (
     clear_accelerator_cache,
     get_runtime_snapshot,
     input_device_choices,
+    output_device_choices,
     parse_input_device,
+    parse_output_device,
 )
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s  %(message)s")
@@ -794,6 +796,11 @@ class LiveTab(QWidget):
         self._mic_combo = QComboBox()
         self._mic_combo.addItems(input_device_choices())
         lang_row.addWidget(self._mic_combo)
+        lang_row.addSpacing(16)
+        lang_row.addWidget(QLabel("Output"))
+        self._output_combo = QComboBox()
+        self._output_combo.addItems(output_device_choices())
+        lang_row.addWidget(self._output_combo)
         lang_row.addStretch()
         root.addLayout(lang_row)
 
@@ -857,6 +864,7 @@ class LiveTab(QWidget):
             mms_tts=_mms_tts,
             eng_tts=_eng_tts,
             input_device=parse_input_device(self._mic_combo.currentText()),
+            output_device=parse_output_device(self._output_combo.currentText()),
         )
         self._pipeline.start_microphone()
         self._set_running(True)
@@ -882,6 +890,7 @@ class LiveTab(QWidget):
         self._src_combo.setEnabled(not running)
         self._tgt_combo.setEnabled(not running)
         self._mic_combo.setEnabled(not running)
+        self._output_combo.setEnabled(not running)
 
     def _clear(self) -> None:
         self._transcript.clear()

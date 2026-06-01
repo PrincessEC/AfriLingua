@@ -4,6 +4,7 @@ from __future__ import annotations
 import gc
 import logging
 import os
+import re
 from dataclasses import dataclass
 from typing import Optional
 
@@ -202,30 +203,103 @@ def clear_accelerator_cache() -> str:
     return "CPU mode is active. Python memory cleanup completed."
 
 
-def input_device_choices() -> list[str]:
-    """Return user-facing microphone choices for server-side capture."""
-    choices = ["Default input"]
+_WINDOWS_DEVICE_NOISE = (
+    "microsoft sound mapper",
+    "primary sound",
+    "wdm-ks",
+    "mapper",
+    "output (",
+    "input ()",
+    "midi",
+    "system virtual",
+    "line out",
+)
+_PREFERRED_HOST_APIS = ("Windows WASAPI",)
+_FALLBACK_HOST_APIS = ("Windows DirectSound", "MME")
+
+
+def _clean_device_name(name: str) -> str:
+    name = re.sub(r"\s+", " ", name).strip()
+    name = name.replace("Microphone Array (Realtek(R) Audio)", "Microphone Array (Realtek Audio)")
+    name = name.replace("Speakers (Realtek(R) Audio)", "Speakers (Realtek Audio)")
+    return name
+
+
+def _device_key(name: str) -> str:
+    return re.sub(r"[^a-z0-9]+", " ", name.lower()).strip()
+
+
+def _is_noise_device(name: str, hostapi: str) -> bool:
+    value = f"{name} {hostapi}".lower()
+    return any(token in value for token in _WINDOWS_DEVICE_NOISE)
+
+
+def _audio_device_choices(kind: str) -> list[str]:
+    """Return curated user-facing audio choices for server-side capture/playback."""
+    is_input = kind == "input"
+    default_label = "Default microphone" if is_input else "Default speakers"
+    choices = [default_label]
     if sd is None:
         return choices
     try:
         hostapis = sd.query_hostapis()
-        for index, device in enumerate(sd.query_devices()):
-            if int(device.get("max_input_channels", 0)) <= 0:
-                continue
+        devices = list(sd.query_devices())
+        seen: set[str] = set()
+
+        def _append(index: int, device: dict, preferred: bool = False) -> None:
             hostapi = hostapis[int(device.get("hostapi", 0))]["name"]
-            name = str(device.get("name") or f"Input {index}")
-            choices.append(f"{index}: {name} [{hostapi}]")
+            name = _clean_device_name(str(device.get("name") or f"Device {index}"))
+            if _is_noise_device(name, hostapi):
+                return
+            key = _device_key(name)
+            if not key or key in seen:
+                return
+            seen.add(key)
+            suffix = "default" if preferred else hostapi.replace("Windows ", "")
+            choices.append(f"{name} ({suffix}) [{index}]")
+
+        def _append_for_hostapis(names: tuple[str, ...]) -> None:
+            for index, device in enumerate(devices):
+                channels = int(device.get("max_input_channels" if is_input else "max_output_channels", 0))
+                if channels <= 0:
+                    continue
+                hostapi = hostapis[int(device.get("hostapi", 0))]["name"]
+                if hostapi not in names:
+                    continue
+                _append(index, device)
+
+        _append_for_hostapis(_PREFERRED_HOST_APIS)
+        if len(choices) == 1:
+            _append_for_hostapis(_FALLBACK_HOST_APIS)
     except Exception as exc:
-        logger.warning("Could not enumerate microphone devices: %s", exc)
+        logger.warning("Could not enumerate %s devices: %s", kind, exc)
     return choices
 
 
-def parse_input_device(choice: str | None) -> int | None:
-    """Parse a dropdown label from input_device_choices()."""
-    if not choice or choice == "Default input":
+def input_device_choices() -> list[str]:
+    return _audio_device_choices("input")
+
+
+def output_device_choices() -> list[str]:
+    return _audio_device_choices("output")
+
+
+def parse_audio_device(choice: str | None) -> int | None:
+    """Parse a dropdown label from input/output device choices."""
+    if not choice or choice.startswith("Default "):
         return None
+    bracket_match = re.search(r"\[(\d+)\]\s*$", choice)
+    if bracket_match:
+        return int(bracket_match.group(1))
     try:
         return int(choice.split(":", 1)[0].strip())
     except (TypeError, ValueError):
         return None
 
+
+def parse_input_device(choice: str | None) -> int | None:
+    return parse_audio_device(choice)
+
+
+def parse_output_device(choice: str | None) -> int | None:
+    return parse_audio_device(choice)

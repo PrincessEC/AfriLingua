@@ -31,10 +31,11 @@ class AudioPlayer:
         player.stop()
     """
 
-    def __init__(self) -> None:
+    def __init__(self, output_device: int | str | None = None) -> None:
         self._queue: queue.Queue = queue.Queue()
         self._thread: Optional[threading.Thread] = None
         self._running = False
+        self.output_device = output_device
 
     def _worker(self) -> None:
         while True:
@@ -43,7 +44,7 @@ class AudioPlayer:
                 break
             waveform, sample_rate = item
             try:
-                sd.play(waveform, samplerate=sample_rate)
+                sd.play(waveform, samplerate=sample_rate, device=self.output_device)
                 sd.wait()
             except Exception as exc:
                 logger.error("Audio playback error: %s", exc)
