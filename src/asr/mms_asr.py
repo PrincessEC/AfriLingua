@@ -28,9 +28,12 @@ from src.hf_compat import dtype_name_kwargs
 logger = logging.getLogger(__name__)
 
 # Lingua / internal name -> MMS language tag.
+# Lingua / internal name -> MMS language tag.
 MMS_LANG_MAP: dict[str, str] = {
     "igbo": "ibo",
+    "igbo": "ibo",
     "yoruba": "yor",
+    "hausa": "hau",
     "hausa": "hau",
 }
 
@@ -71,6 +74,24 @@ class MMSASR:
                 "not include the ASR adapters needed for Igbo/Yoruba/Hausa."
             )
 
+    def _validate_model_config(self) -> None:
+        """Fail early when MODEL_MMS_ASR points at a non-ASR MMS checkpoint."""
+        config = AutoConfig.from_pretrained(
+            MODEL_MMS_ASR,
+            cache_dir=str(HF_CACHE),
+        )
+        architectures = set(getattr(config, "architectures", []) or [])
+        adapter_dim = getattr(config, "adapter_attn_dim", None)
+        if adapter_dim is None or (
+            architectures and "Wav2Vec2ForCTC" not in architectures
+        ):
+            raise ValueError(
+                f"{MODEL_MMS_ASR!r} is not a fine-tuned MMS ASR checkpoint. "
+                "Set MODEL_MMS_ASR=facebook/mms-1b-all. "
+                "The facebook/mms-300m checkpoint is pretrained only and does "
+                "not include the ASR adapters needed for Igbo/Yoruba/Hausa."
+            )
+
     def _load(self) -> None:
         if self._model is not None:
             return
@@ -85,10 +106,12 @@ class MMSASR:
         self._processor = AutoProcessor.from_pretrained(
             MODEL_MMS_ASR,
             target_lang=default_lang,
+            target_lang=default_lang,
             cache_dir=str(HF_CACHE),
         )
         self._model = Wav2Vec2ForCTC.from_pretrained(
             MODEL_MMS_ASR,
+            ignore_mismatched_sizes=True,
             ignore_mismatched_sizes=True,
             cache_dir=str(HF_CACHE),
             **dtype_name_kwargs(TORCH_DTYPE),
@@ -97,8 +120,11 @@ class MMSASR:
         self._model.eval()
         self._switch_lang(default_lang)
         logger.info("MMS ASR ready.")
+        self._switch_lang(default_lang)
+        logger.info("MMS ASR ready.")
 
     def _switch_lang(self, mms_lang: str) -> None:
+        """Load a language adapter and switch the tokenizer vocabulary."""
         """Load a language adapter and switch the tokenizer vocabulary."""
         if mms_lang == self._current_lang:
             return
@@ -136,6 +162,8 @@ class MMSASR:
         Args:
             audio: Float32 numpy array, shape (N,), values in [-1, 1].
             lang: Language name: "igbo", "yoruba", or "hausa".
+            audio: Float32 numpy array, shape (N,), values in [-1, 1].
+            lang: Language name: "igbo", "yoruba", or "hausa".
             sample_rate: Source sample rate; must be 16000 Hz (auto-resampled).
 
         Returns:
@@ -150,6 +178,7 @@ class MMSASR:
         if mms_lang is None:
             raise ValueError(
                 f"Unsupported language for MMS ASR: {lang!r}. "
+                f"Unsupported language for MMS ASR: {lang!r}. "
                 f"Supported: {list(MMS_LANG_MAP.keys())}"
             )
 
@@ -159,6 +188,7 @@ class MMSASR:
 
         if sample_rate != 16000:
             import torchaudio.functional as F
+
 
             audio_t = torch.from_numpy(audio).unsqueeze(0)
             audio_t = F.resample(audio_t, sample_rate, 16000)
@@ -174,6 +204,8 @@ class MMSASR:
             sampling_rate=16000,
             return_tensors="pt",
         )
+        device = next(self._model.parameters()).device
+        inputs = {key: value.to(device) for key, value in inputs.items()}
         device = next(self._model.parameters()).device
         inputs = {key: value.to(device) for key, value in inputs.items()}
 

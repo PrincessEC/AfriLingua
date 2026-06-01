@@ -25,7 +25,20 @@ from pathlib import Path
 # gradio imports huggingface_hub at module level, which reads HUGGINGFACE_HUB_CACHE
 # on import.  If src.config hasn't run yet, HF falls back to ~/.cache/huggingface
 # and every restart re-downloads models to the wrong location.
+# ── IMPORTANT: set HuggingFace cache env-vars BEFORE importing gradio ────────
+# gradio imports huggingface_hub at module level, which reads HUGGINGFACE_HUB_CACHE
+# on import.  If src.config hasn't run yet, HF falls back to ~/.cache/huggingface
+# and every restart re-downloads models to the wrong location.
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+
+from src.config import (                           # noqa: E402  (intentional early import)
+    GRADIO_PORT,
+    DEVICE, TORCH_DTYPE, HARDWARE_PROFILE, GPU_INFO,
+    MODEL_NLLB, MODEL_WHISPER, MODEL_MMS_ASR,
+)
+
+import base64
+import io
 
 from src.config import (                           # noqa: E402  (intentional early import)
     GRADIO_PORT,
@@ -328,15 +341,19 @@ def _loading_banner_html(step: int, total: int, label: str, dl_info: dict | None
     pct = int(step / total * 100)
     done = step == total
     bar_color = "#1d6f5f" if done else "#d95f43"
+    bar_color = "#1d6f5f" if done else "#d95f43"
     spin_style = (
         "display:none" if done else
         "display:inline-block;width:15px;height:15px;"
+        "border:2px solid #d95f43;border-top-color:transparent;"
         "border:2px solid #d95f43;border-top-color:transparent;"
         "border-radius:50%;animation:al-spin .7s linear infinite;"
         "vertical-align:middle;margin-right:8px;"
     )
     icon = "" if done else ""
+    icon = "" if done else ""
     heading = (
+        "AfriLingua is ready" if done else
         "AfriLingua is ready" if done else
         f"AfriLingua — loading models ({step}/{total})"
     )
@@ -344,10 +361,13 @@ def _loading_banner_html(step: int, total: int, label: str, dl_info: dict | None
         "All models are loaded. You can now translate text, documents, and live speech."
         if done else
         f"{label}"
+        f"{label}"
     )
     note = (
         ""
         if done else
+        '<p style="color:#6b746c;font-size:11px;margin:4px 0 0;">'
+        "First-time setup downloads model weights (~7-8 GB). "
         '<p style="color:#6b746c;font-size:11px;margin:4px 0 0;">'
         "First-time setup downloads model weights (~7-8 GB). "
         "This only happens once — subsequent starts are much faster."
@@ -365,9 +385,13 @@ def _loading_banner_html(step: int, total: int, label: str, dl_info: dict | None
             '<div style="display:flex;justify-content:space-between;'
             'color:#1d6f5f;font-size:11px;margin-bottom:4px;">'
             f'<span>{fname}</span>'
+            'color:#1d6f5f;font-size:11px;margin-bottom:4px;">'
+            f'<span>{fname}</span>'
             f'<span>{done_mb:.1f}&thinsp;/&thinsp;{total_mb:.1f}&thinsp;MB'
             f'&nbsp;&middot;&nbsp;{speed_mb:.1f}&thinsp;MB/s</span>'
             '</div>'
+            '<div style="background:#dfe5db;border-radius:3px;height:4px;overflow:hidden;">'
+            f'<div style="background:#4f8f80;width:{pct_dl}%;height:4px;border-radius:3px;"></div>'
             '<div style="background:#dfe5db;border-radius:3px;height:4px;overflow:hidden;">'
             f'<div style="background:#4f8f80;width:{pct_dl}%;height:4px;border-radius:3px;"></div>'
             '</div>'
@@ -378,13 +402,17 @@ def _loading_banner_html(step: int, total: int, label: str, dl_info: dict | None
     visibility = "" if not done else "opacity:.6;"
     return (
         f'<div style="{visibility}background:#ffffff;border:1px solid #d9dfd2;'
+        f'<div style="{visibility}background:#ffffff;border:1px solid #d9dfd2;'
         f'border-radius:8px;padding:14px 16px;margin-bottom:10px;">'
         f'<div style="display:flex;align-items:center;margin-bottom:8px;">'
         f'<div style="{spin_style}"></div>'
         f'<b style="color:#17201b;">{heading}</b></div>'
         f'<div style="background:#dfe5db;border-radius:4px;height:6px;overflow:hidden;">'
+        f'<b style="color:#17201b;">{heading}</b></div>'
+        f'<div style="background:#dfe5db;border-radius:4px;height:6px;overflow:hidden;">'
         f'<div style="background:{bar_color};width:{pct}%;height:6px;border-radius:4px;"></div>'
         "</div>"
+        f'<p style="color:#5e6a61;font-size:12px;margin:6px 0 0;">{sub}</p>'
         f'<p style="color:#5e6a61;font-size:12px;margin:6px 0 0;">{sub}</p>'
         f"{note}"
         f"{dl_section}"
@@ -513,9 +541,11 @@ def live_translate_chunk(audio_chunk, src_lang: str, tgt_lang: str, transcript_s
 def _format_transcript(state: list) -> str:
     if not state:
         return "Waiting for speech ..."
+        return "Waiting for speech ..."
     lines = []
     for i, entry in enumerate(state):
         is_latest = (i == len(state) - 1)
+        prefix = ">" if is_latest else " "
         prefix = ">" if is_latest else " "
         lines.append(
             f"{prefix} [{entry['speaker']}]  →  {entry['lang'].capitalize()}\n"
@@ -526,6 +556,7 @@ def _format_transcript(state: list) -> str:
 
 
 def clear_transcript():
+    return [], "Waiting for speech ...", None
     return [], "Waiting for speech ...", None
 
 
@@ -548,8 +579,26 @@ _loading_state: dict = {
 _loading_lock = threading.Lock()
 
 
+# ── Module-level loading state ──────────────────────────────────────────────
+# Shared across every Gradio client connection so the background thread that
+# calls load_all() is started exactly once, no matter how many browser tabs
+# connect or reload while the app is still initialising.
+_loading_state: dict = {
+    "started": False,
+    "step":    0,
+    "label":   "Initialising …",
+    "done":    False,
+    "error":   None,
+    "dl":      None,
+}
+_loading_lock = threading.Lock()
+
+
 def _startup_load():
     """
+    Generator that streams loading progress to the loading banner.
+    The background thread is started at most once — additional browser clients
+    that connect while loading is in progress share the same _loading_state.
     Generator that streams loading progress to the loading banner.
     The background thread is started at most once — additional browser clients
     that connect while loading is in progress share the same _loading_state.
@@ -562,7 +611,18 @@ def _startup_load():
     if should_start:
         def _on_progress(step: int, total: int, label: str) -> None:
             _loading_state.update(step=step, label=label, dl=None)
+    with _loading_lock:
+        should_start = not _loading_state["started"]
+        if should_start:
+            _loading_state["started"] = True
 
+    if should_start:
+        def _on_progress(step: int, total: int, label: str) -> None:
+            _loading_state.update(step=step, label=label, dl=None)
+
+        def _on_download(filename: str, done: int, total: int, speed: float) -> None:
+            _loading_state["dl"] = {"filename": filename, "done": done,
+                                    "total": total, "speed": speed}
         def _on_download(filename: str, done: int, total: int, speed: float) -> None:
             _loading_state["dl"] = {"filename": filename, "done": done,
                                     "total": total, "speed": speed}
@@ -583,9 +643,31 @@ def _startup_load():
                 _loading_state["error"] = str(exc)
             finally:
                 _loading_state["done"] = True
+        def _bg() -> None:
+            try:
+                load_all(
+                    on_progress=_on_progress,
+                    on_download_progress=_on_download,
+                    engine=_engine,
+                    whisper=_whisper,
+                    mms_asr=_mms_asr,
+                    eng_tts=_eng_tts,
+                    mms_tts=_mms_tts,
+                )
+            except Exception as exc:
+                logger.error("Startup load error: %s", exc, exc_info=True)
+                _loading_state["error"] = str(exc)
+            finally:
+                _loading_state["done"] = True
 
         threading.Thread(target=_bg, daemon=True).start()
+        threading.Thread(target=_bg, daemon=True).start()
 
+    while not _loading_state["done"]:
+        yield _loading_banner_html(
+            _loading_state["step"], TOTAL_STEPS,
+            _loading_state["label"], _loading_state["dl"],
+        )
     while not _loading_state["done"]:
         yield _loading_banner_html(
             _loading_state["step"], TOTAL_STEPS,
@@ -595,16 +677,21 @@ def _startup_load():
 
     if _loading_state.get("error"):
         err = _loading_state["error"]
+    if _loading_state.get("error"):
+        err = _loading_state["error"]
         if "No internet connection" in err:
             label = (
+                "No internet connection — "
                 "No internet connection — "
                 "AfriLingua needs to download model weights on first run. "
                 "Please connect to the internet and reload this page."
             )
         else:
             label = f"Loading failed: {err}"
+            label = f"Loading failed: {err}"
         yield _loading_banner_html(0, TOTAL_STEPS, label, None)
     else:
+        yield _loading_banner_html(TOTAL_STEPS, TOTAL_STEPS, "All models ready", None)
         yield _loading_banner_html(TOTAL_STEPS, TOTAL_STEPS, "All models ready", None)
 
 
@@ -612,10 +699,17 @@ def build_ui() -> gr.Blocks:
     src_choices = ["auto-detect"] + _LANGUAGE_CHOICES
 
     with gr.Blocks(title="AfriLingua") as demo:
+    with gr.Blocks(title="AfriLingua") as demo:
 
         # ── Styled header ──────────────────────────────────────────────────
         gr.HTML(
             '<div class="al-header">'
+            '<div class="al-product-mark">'
+            '<p class="al-title">AfriLingua</p>'
+            '<p class="al-subtitle">Real-time translation for English, Igbo, Yoruba, and Hausa</p>'
+            '</div>'
+            '<span class="al-status-pill">Local models</span>'
+            '</div>'
             '<div class="al-product-mark">'
             '<p class="al-title">AfriLingua</p>'
             '<p class="al-subtitle">Real-time translation for English, Igbo, Yoruba, and Hausa</p>'
@@ -636,11 +730,15 @@ def build_ui() -> gr.Blocks:
         # ── Tab 1: Live Conversation ──────────────────────────────────────────
         with gr.Tab("Live"):
             gr.HTML('<div class="al-section-title">Live interpretation</div>')
+        with gr.Tab("Live"):
+            gr.HTML('<div class="al-section-title">Live interpretation</div>')
             with gr.Row():
                 live_src = gr.Dropdown(
                     _LANGUAGE_CHOICES, value="english", label="Source language"
+                    _LANGUAGE_CHOICES, value="english", label="Source language"
                 )
                 live_tgt = gr.Dropdown(
+                    _LANGUAGE_CHOICES, value="igbo", label="Target language"
                     _LANGUAGE_CHOICES, value="igbo", label="Target language"
                 )
             live_audio_in = gr.Audio(
@@ -648,14 +746,18 @@ def build_ui() -> gr.Blocks:
                 type="numpy",
                 streaming=True,
                 label="Microphone",
+                label="Microphone",
             )
             live_transcript = gr.Textbox(
+                label="Transcript",
                 label="Transcript",
                 lines=18,
                 interactive=False,
                 value="Waiting for speech ...",
+                value="Waiting for speech ...",
             )
             live_audio_out = gr.Audio(
+                label="Audio output",
                 label="Audio output",
                 type="numpy",
                 autoplay=True,
@@ -678,26 +780,34 @@ def build_ui() -> gr.Blocks:
         # ── Tab 2: Document Translation ───────────────────────────────────────
         with gr.Tab("Documents"):
             gr.HTML('<div class="al-section-title">Document translation</div>')
+        with gr.Tab("Documents"):
+            gr.HTML('<div class="al-section-title">Document translation</div>')
             with gr.Row():
                 doc_src = gr.Dropdown(
+                    src_choices, value="auto-detect", label="Source language"
                     src_choices, value="auto-detect", label="Source language"
                 )
                 doc_tgt = gr.Dropdown(
                     _LANGUAGE_CHOICES, value="igbo", label="Target language"
+                    _LANGUAGE_CHOICES, value="igbo", label="Target language"
                 )
             doc_upload   = gr.File(
                 label="Upload document",
+                label="Upload document",
                 file_types=[".txt", ".pdf", ".docx"]
             )
+            doc_btn = gr.Button("Translate document", variant="primary")
             doc_btn = gr.Button("Translate document", variant="primary")
             with gr.Row():
                 with gr.Column(scale=3):
                     doc_preview = gr.Textbox(
                         label="Translation preview",
+                        label="Translation preview",
                         lines=14,
                         interactive=False
                     )
                 with gr.Column(scale=1):
+                    doc_download = gr.File(label="Translated file")
                     doc_download = gr.File(label="Translated file")
 
             doc_btn.click(
@@ -709,34 +819,45 @@ def build_ui() -> gr.Blocks:
         # ── Tab 3: Text Translation ───────────────────────────────────────────
         with gr.Tab("Text"):
             gr.HTML('<div class="al-section-title">Text translation</div>')
+        with gr.Tab("Text"):
+            gr.HTML('<div class="al-section-title">Text translation</div>')
             with gr.Row():
                 txt_src = gr.Dropdown(
+                    src_choices, value="auto-detect", label="Source language"
                     src_choices, value="auto-detect", label="Source language"
                 )
                 txt_tgt = gr.Dropdown(
                     _LANGUAGE_CHOICES, value="yoruba", label="Target language"
+                    _LANGUAGE_CHOICES, value="yoruba", label="Target language"
                 )
+                play_tts = gr.Checkbox(label="Play audio", value=True)
                 play_tts = gr.Checkbox(label="Play audio", value=True)
             with gr.Row():
                 with gr.Column():
                     txt_input = gr.Textbox(
                         label="Input text",
+                        label="Input text",
                         lines=8,
+                        placeholder="Type or paste text here...",
                         placeholder="Type or paste text here...",
                     )
                 with gr.Column():
                     txt_output = gr.Textbox(
                         label="Translation",
+                        label="Translation",
                         lines=8,
                         interactive=False,
+                        placeholder="Translation will appear here...",
                         placeholder="Translation will appear here...",
                     )
             with gr.Row():
                 with gr.Column(scale=1):
                     txt_btn = gr.Button("Translate", variant="primary")
+                    txt_btn = gr.Button("Translate", variant="primary")
                 with gr.Column(scale=3):
                     txt_status = gr.Markdown("")
             txt_audio = gr.Audio(
+                label="Audio output",
                 label="Audio output",
                 type="numpy",
                 autoplay=False
@@ -794,6 +915,8 @@ if __name__ == "__main__":
         server_port=port,
         share=False,
         show_error=True,
+        theme=Soft(),
+        css=_CSS,
         theme=Soft(),
         css=_CSS,
     )
