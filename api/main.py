@@ -33,6 +33,7 @@ from src.detection.lang_detector import LanguageDetector
 from src.document.translator import DocumentTranslator
 from src.pipeline.realtime_pipeline import RealtimePipeline, TranslationResult
 from src.translation.engine import TranslationEngine, SUPPORTED_LANGUAGES
+from src.languages import ASR_LANGUAGE_CHOICES, TTS_MODEL_IDS
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s  %(message)s")
 logger = logging.getLogger(__name__)
@@ -53,7 +54,7 @@ app.add_middleware(
 # ── Shared singletons ─────────────────────────────────────────────────────────
 _engine:   TranslationEngine = TranslationEngine()
 _detector: LanguageDetector  = LanguageDetector()
-_doc_translator: DocumentTranslator = DocumentTranslator()
+_doc_translator: DocumentTranslator = DocumentTranslator(engine=_engine, detector=_detector)
 
 
 # ── Pydantic schemas ──────────────────────────────────────────────────────────
@@ -161,6 +162,7 @@ async def stream_translate(websocket: WebSocket) -> None:
             tgt_lang=tgt_lang,
             on_result=on_result,
             audio_output=audio_output,
+            local_playback=False,
         )
 
         async def sender() -> None:
@@ -185,7 +187,7 @@ async def stream_translate(websocket: WebSocket) -> None:
 
             # Run the pipeline in a thread pool to avoid blocking the event loop
             await asyncio.get_event_loop().run_in_executor(
-                None, pipeline.process_audio_chunk, audio
+                None, lambda: pipeline.process_audio_chunk(audio, wait_for_audio=audio_output)
             )
 
     except WebSocketDisconnect:
@@ -204,6 +206,8 @@ async def health() -> dict:
     return {
         "status":              "ok",
         "supported_languages": SUPPORTED_LANGUAGES,
+        "asr_languages":       ASR_LANGUAGE_CHOICES,
+        "tts_languages":       ["english", *TTS_MODEL_IDS.keys()],
     }
 
 

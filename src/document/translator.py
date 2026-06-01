@@ -30,10 +30,16 @@ class DocumentTranslator:
         print(f"Translated saved to: {out_path}")
     """
 
-    def __init__(self) -> None:
-        self._reader   = DocumentReader()
-        self._detector = LanguageDetector()
-        self._engine   = TranslationEngine()
+    def __init__(
+        self,
+        *,
+        reader: Optional[DocumentReader] = None,
+        detector: Optional[LanguageDetector] = None,
+        engine: Optional[TranslationEngine] = None,
+    ) -> None:
+        self._reader   = reader if reader is not None else DocumentReader()
+        self._detector = detector if detector is not None else LanguageDetector()
+        self._engine   = engine if engine is not None else TranslationEngine()
 
     def translate_file(
         self,

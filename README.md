@@ -145,6 +145,21 @@ TORCH_DTYPE=auto
 | `float32` | Full precision — always safe, higher memory usage |
 | `float16` | Half precision — GPU only; do not use on CPU |
 
+For NVIDIA GPUs on Windows, PyTorch must be the CUDA build. If the app says
+`CUDA unavailable` while Device Manager shows an NVIDIA card, reinstall the CUDA
+wheels with:
+
+```powershell
+python -m pip install --upgrade --force-reinstall --no-deps torch==2.11.0+cu128 --index-url https://download.pytorch.org/whl/cu128
+python -m pip install --upgrade --force-reinstall --no-deps torchaudio==2.11.0+cu128 --index-url https://download.pytorch.org/whl/cu128
+```
+
+Then verify from the project folder:
+
+```powershell
+python -c "import torch; print(torch.__version__, torch.version.cuda, torch.cuda.is_available())"
+```
+
 ### Choosing a hardware profile
 
 | Profile | Recommended settings | Expected RAM | Translation speed |
@@ -431,6 +446,26 @@ GRADIO_PORT=7860
 See [Hardware & Device Configuration](#hardware--device-configuration) and [Deployment Modes](#deployment-modes) for full details on each option.
 
 ---
+
+## Config-Only Language Expansion
+
+AfriLingua now has a central language registry in `src/languages.py`. The built-in
+languages still work out of the box, and additional NLLB/MMS-backed languages can
+be added through configuration:
+
+```env
+LANGUAGE_REGISTRY_FILE=./languages.json
+# or:
+AFRILINGUA_EXTRA_LANGUAGES=[{"name":"swahili","nllb_code":"swh_Latn","mms_asr_code":"swh","mms_tts_model":"facebook/mms-tts-swh","aliases":["kiswahili"],"detection_words":["habari","asante"]}]
+```
+
+When a configured language is selected, the relevant Hugging Face model is
+downloaded automatically on first use and cached under `models/cache/`. Use
+`PRELOAD_MODE=adaptive` for broad hardware compatibility, `PRELOAD_MODE=all` to
+eagerly load every configured model, or `PRELOAD_MODE=minimal` for the lightest
+startup on low-memory machines. On 4-7 GB GPUs, adaptive mode keeps the
+translation model hot and lazy-loads speech/TTS so the app avoids exhausting
+VRAM at startup.
 
 ## Adding a New Language
 
