@@ -39,6 +39,7 @@ from src.config import (
     HF_CACHE,
     MODEL_NLLB,
 )
+from src.hf_compat import fp32_dtype_kwargs
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s  %(message)s")
 logger = logging.getLogger(__name__)
@@ -135,8 +136,8 @@ def train(max_train_samples: int | None = None) -> None:
     tokenizer = AutoTokenizer.from_pretrained(MODEL_NLLB, cache_dir=str(HF_CACHE))
     model = AutoModelForSeq2SeqLM.from_pretrained(
         MODEL_NLLB,
-        torch_dtype=torch.float32,
         cache_dir=str(HF_CACHE),
+        **fp32_dtype_kwargs(),
     )
 
     train_ds, val_ds = load_splits(max_train_samples)

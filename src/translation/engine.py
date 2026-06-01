@@ -1,6 +1,6 @@
 """
 src/translation/engine.py
-Core translation engine using Meta NLLB-200 (CPU-only, distilled-600M).
+Core translation engine using Meta NLLB-200.
 
 Supported language pairs (bidirectional):
     English  ↔  Igbo
@@ -10,13 +10,19 @@ Supported language pairs (bidirectional):
 from __future__ import annotations
 
 import logging
-from pathlib import Path
 from typing import List, Optional
 
 import torch
-from transformers import AutoModelForSeq2SeqLM, AutoTokenizer, pipeline
+from transformers import AutoModelForSeq2SeqLM, AutoTokenizer
 
-from src.config import DEVICE, FINETUNED_MODEL_DIR, HF_CACHE, MODEL_NLLB
+from src.config import (
+    DEVICE,
+    FINETUNED_MODEL_DIR,
+    HF_CACHE,
+    MODEL_NLLB,
+    TORCH_DTYPE,
+)
+from src.hf_compat import dtype_name_kwargs
 
 logger = logging.getLogger(__name__)
 
@@ -80,9 +86,10 @@ class TranslationEngine:
         logger.info("Loading NLLB model onto %s …", DEVICE)
         self._model = AutoModelForSeq2SeqLM.from_pretrained(
             path,
-            torch_dtype=torch.float32,
             cache_dir=str(HF_CACHE),
+            **dtype_name_kwargs(TORCH_DTYPE),
         )
+        self._model.to(DEVICE)
         self._model.eval()
         logger.info("NLLB model ready.")
 
@@ -159,6 +166,7 @@ class TranslationEngine:
             truncation=True,
             max_length=max_length,
         )
+        inputs = {key: value.to(DEVICE) for key, value in inputs.items()}
 
         # Force target language BOS token
         forced_bos_id = self._tokenizer.convert_tokens_to_ids(tgt_code)
@@ -172,7 +180,7 @@ class TranslationEngine:
             )
 
         translations = self._tokenizer.batch_decode(
-            output_ids, skip_special_tokens=True
+            output_ids.detach().cpu(), skip_special_tokens=True
         )
         return translations
 

@@ -1,6 +1,6 @@
 """
 src/asr/whisper_asr.py
-Whisper-based ASR for English (CPU, small model).
+Whisper-based ASR for English.
 """
 from __future__ import annotations
 
@@ -11,7 +11,7 @@ import numpy as np
 import torch
 import whisper
 
-from src.config import HF_CACHE, MODEL_WHISPER, SAMPLE_RATE
+from src.config import DEVICE, HF_CACHE, MODEL_WHISPER, SAMPLE_RATE
 
 logger = logging.getLogger(__name__)
 
@@ -28,7 +28,7 @@ _MODEL_SIZE_MAP = {
 
 class WhisperASR:
     """
-    English speech → text using OpenAI Whisper (small, CPU).
+    English speech to text using OpenAI Whisper.
 
     Usage::
         asr = WhisperASR()
@@ -42,10 +42,11 @@ class WhisperASR:
         if self._model is not None:
             return
         size = _MODEL_SIZE_MAP.get(MODEL_WHISPER, "small")
-        logger.info("Loading Whisper '%s' on CPU …", size)
+        device = "cuda" if DEVICE == "cuda" else "cpu"
+        logger.info("Loading Whisper '%s' on %s ...", size, device)
         self._model = whisper.load_model(
             size,
-            device="cpu",
+            device=device,
             download_root=str(HF_CACHE / "whisper"),
         )
         logger.info("Whisper ready.")
@@ -84,7 +85,7 @@ class WhisperASR:
             audio_t = F.resample(audio_t, sample_rate, 16000)
             audio = audio_t.squeeze(0).numpy()
 
-        result = self._model.transcribe(audio, language=language, fp16=False)
+        result = self._model.transcribe(audio, language=language, fp16=DEVICE == "cuda")
         return result.get("text", "").strip()
 
     def is_loaded(self) -> bool:

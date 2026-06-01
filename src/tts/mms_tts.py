@@ -1,6 +1,6 @@
 """
 src/tts/mms_tts.py
-Meta MMS Text-to-Speech for Igbo, Yoruba, and Hausa (CPU).
+Meta MMS Text-to-Speech for Igbo, Yoruba, and Hausa.
 Models are lazy-loaded per language on first call.
 """
 from __future__ import annotations
@@ -10,14 +10,17 @@ from typing import Optional
 
 import numpy as np
 import torch
-from transformers import VitsModel, AutoTokenizer
+from transformers import AutoTokenizer, VitsModel
 
 from src.config import (
+    DEVICE,
     HF_CACHE,
     MODEL_MMS_TTS_IGBO,
     MODEL_MMS_TTS_YORUBA,
     MODEL_MMS_TTS_HAUSA,
+    TORCH_DTYPE,
 )
+from src.hf_compat import dtype_name_kwargs
 
 logger = logging.getLogger(__name__)
 
@@ -56,14 +59,29 @@ class MMSTTS:
                 f"Unsupported language for MMS TTS: '{lang}'. "
                 f"Supported: {SUPPORTED_LANGUAGES}"
             )
-        logger.info("Loading MMS TTS for '%s' from %s …", lang, model_id)
-        tokenizer = AutoTokenizer.from_pretrained(model_id, cache_dir=str(HF_CACHE))
-        model = VitsModel.from_pretrained(
+        logger.info(
+            "Loading MMS TTS for '%s' on %s from %s ...",
+            lang,
+            DEVICE,
             model_id,
-            torch_dtype=torch.float32,
-            cache_dir=str(HF_CACHE),
         )
+        try:
+            tokenizer = AutoTokenizer.from_pretrained(
+                model_id,
+                cache_dir=str(HF_CACHE),
+            )
+            model = VitsModel.from_pretrained(
+                model_id,
+                cache_dir=str(HF_CACHE),
+                **dtype_name_kwargs(TORCH_DTYPE),
+            )
+        except OSError as exc:
+            raise ValueError(
+                f"Could not load MMS TTS model {model_id!r} for {lang!r}. "
+                f"Check MODEL_MMS_TTS_{lang.upper()} in your .env file."
+            ) from exc
         model.eval()
+        model.to(DEVICE)
         self._tokenizers[lang] = tokenizer
         self._models[lang] = model
         logger.info("MMS TTS '%s' ready.", lang)
@@ -86,10 +104,14 @@ class MMSTTS:
         model     = self._models[lang]
 
         inputs = tokenizer(text, return_tensors="pt")
+        device = next(model.parameters()).device
+        inputs = {key: value.to(device) for key, value in inputs.items()}
         with torch.no_grad():
             output = model(**inputs)
 
-        waveform = output.waveform.squeeze().numpy().astype(np.float32)
+        waveform = (
+            output.waveform.squeeze().detach().cpu().numpy().astype(np.float32)
+        )
         sample_rate = model.config.sampling_rate
         return waveform, sample_rate
 

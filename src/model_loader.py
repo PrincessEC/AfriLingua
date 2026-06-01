@@ -28,16 +28,38 @@ TOTAL_STEPS = 7
 
 
 def _is_offline_error(exc: BaseException) -> bool:
-    """Return True if *exc* looks like a network / connectivity failure."""
+    """Return True if *exc* looks like a network / connectivity failure.
+
+    Deliberately excludes authentication (401) and repository-not-found errors
+    so those are surfaced with their real message instead of "No internet".
+    """
+    # Exclude HuggingFace-specific auth / not-found errors first
+    try:
+        from huggingface_hub.errors import RepositoryNotFoundError as _RNFE
+        cause: Optional[BaseException] = exc
+        while cause is not None:
+            if isinstance(cause, _RNFE):
+                return False
+            cause = cause.__cause__
+    except ImportError:
+        pass
+
     import socket
     if isinstance(exc, (ConnectionError, TimeoutError,
                         socket.gaierror, socket.timeout, OSError)):
         msg = str(exc).lower()
+        # Use precise low-level network error phrases only
         _OFFLINE_HINTS = (
-            "couldn't connect", "connection error", "network is unreachable",
-            "offline", "unreachable", "timed out", "huggingface.co",
-            "getaddrinfo failed", "name or service not known",
+            "couldn't connect",
+            "connection refused",
+            "network is unreachable",
+            "no route to host",
+            "getaddrinfo failed",
+            "name or service not known",
             "temporary failure in name resolution",
+            "[errno 11001]",   # windows: getaddrinfo failed
+            "[errno 10061]",   # windows: connection refused
+            "[winerror 10060]",
         )
         return any(hint in msg for hint in _OFFLINE_HINTS)
     return False
@@ -191,4 +213,4 @@ def load_all(
 
     logger.info("All models loaded and ready.")
     if on_progress:
-        on_progress(TOTAL_STEPS, TOTAL_STEPS, "All models ready ✓")
+        on_progress(TOTAL_STEPS, TOTAL_STEPS, "All models ready")
