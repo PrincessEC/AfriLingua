@@ -23,7 +23,7 @@ from typing import Callable, Optional
 
 logger = logging.getLogger(__name__)
 
-# Number of discrete loading steps (must match the steps inside load_all)
+# Maximum number of built-in loading steps. Adaptive preload may use fewer.
 TOTAL_STEPS = 7
 
 
@@ -170,6 +170,8 @@ def load_all(
         mms_tts:  Pre-created MMSTTS singleton (or None).
     """
     # Lazy import — keeps startup fast when this module is imported at top level
+    from src.config import HARDWARE_PROFILE, PRELOAD_MODE
+    from src.languages import TTS_MODEL_IDS
     from src.translation.engine import TranslationEngine
     from src.asr.whisper_asr import WhisperASR
     from src.asr.mms_asr import MMSASR
@@ -182,10 +184,41 @@ def load_all(
     _eng_tts = eng_tts if eng_tts is not None else EnglishTTS()
     _mms_tts = mms_tts if mms_tts is not None else MMSTTS()
 
+    steps: list[tuple[str, Callable[[], None]]] = [
+        ("Loading NLLB-200 translation model ...", _engine._load),
+    ]
+
+    should_preload_speech = (
+        PRELOAD_MODE == "all"
+        or (PRELOAD_MODE == "adaptive" and HARDWARE_PROFILE == "high")
+    )
+
+    if should_preload_speech:
+        steps.extend([
+            ("Loading Whisper English ASR ...", _whisper._load),
+            ("Loading MMS African-language ASR ...", _mms_asr._load),
+        ])
+    if PRELOAD_MODE != "minimal":
+        steps.append(("Loading English TTS (pyttsx3) ...", _eng_tts._load))
+    if should_preload_speech:
+        for lang in TTS_MODEL_IDS:
+            steps.append((
+                f"Loading MMS TTS - {lang.title()} ...",
+                lambda lang=lang: _mms_tts._load_lang(lang),
+            ))
+
+    total_steps = len(steps)
+    if not should_preload_speech:
+        logger.info(
+            "PRELOAD_MODE=%s on %s profile: speech models will lazy-load on first use.",
+            PRELOAD_MODE,
+            HARDWARE_PROFILE,
+        )
+
     def _emit(step: int, label: str) -> None:
-        logger.info("[%d/%d] %s", step, TOTAL_STEPS, label)
+        logger.info("[%d/%d] %s", step, total_steps, label)
         if on_progress:
-            on_progress(step, TOTAL_STEPS, label)
+            on_progress(step, total_steps, label)
 
     def _step(step: int, label: str, load_fn) -> None:
         """Emit progress, then load with HF download-progress interception."""
@@ -202,6 +235,14 @@ def load_all(
                     "(Once downloaded, the app works fully offline.)"
                 ) from exc
             raise
+
+    for index, (label, load_fn) in enumerate(steps, start=1):
+        _step(index, label, load_fn)
+
+    logger.info("All configured startup models loaded and ready.")
+    if on_progress:
+        on_progress(total_steps, total_steps, "All configured startup models ready")
+    return
 
     _step(1, "Loading NLLB-200 translation model …",  _engine._load)
     _step(2, "Loading Whisper English ASR …",          _whisper._load)

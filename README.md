@@ -447,6 +447,26 @@ See [Hardware & Device Configuration](#hardware--device-configuration) and [Depl
 
 ---
 
+## Config-Only Language Expansion
+
+AfriLingua now has a central language registry in `src/languages.py`. The built-in
+languages still work out of the box, and additional NLLB/MMS-backed languages can
+be added through configuration:
+
+```env
+LANGUAGE_REGISTRY_FILE=./languages.json
+# or:
+AFRILINGUA_EXTRA_LANGUAGES=[{"name":"swahili","nllb_code":"swh_Latn","mms_asr_code":"swh","mms_tts_model":"facebook/mms-tts-swh","aliases":["kiswahili"],"detection_words":["habari","asante"]}]
+```
+
+When a configured language is selected, the relevant Hugging Face model is
+downloaded automatically on first use and cached under `models/cache/`. Use
+`PRELOAD_MODE=adaptive` for broad hardware compatibility, `PRELOAD_MODE=all` to
+eagerly load every configured model, or `PRELOAD_MODE=minimal` for the lightest
+startup on low-memory machines. On 4-7 GB GPUs, adaptive mode keeps the
+translation model hot and lazy-loads speech/TTS so the app avoids exhausting
+VRAM at startup.
+
 ## Adding a New Language
 
 AfriLingua is designed to be extended. To add a new language (e.g. Swahili):

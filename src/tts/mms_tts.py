@@ -15,20 +15,14 @@ from transformers import AutoTokenizer, VitsModel
 from src.config import (
     DEVICE,
     HF_CACHE,
-    MODEL_MMS_TTS_IGBO,
-    MODEL_MMS_TTS_YORUBA,
-    MODEL_MMS_TTS_HAUSA,
     TORCH_DTYPE,
 )
 from src.hf_compat import dtype_name_kwargs
+from src.languages import TTS_MODEL_IDS, normalize_language
 
 logger = logging.getLogger(__name__)
 
-_LANG_TO_MODEL_ID: dict[str, str] = {
-    "igbo":   MODEL_MMS_TTS_IGBO,
-    "yoruba": MODEL_MMS_TTS_YORUBA,
-    "hausa":  MODEL_MMS_TTS_HAUSA,
-}
+_LANG_TO_MODEL_ID: dict[str, str] = dict(TTS_MODEL_IDS)
 
 SUPPORTED_LANGUAGES = list(_LANG_TO_MODEL_ID.keys())
 
@@ -49,6 +43,7 @@ class MMSTTS:
     def __init__(self) -> None:
         self._models:     dict[str, VitsModel]     = {}
         self._tokenizers: dict[str, AutoTokenizer] = {}
+        self._device: str = DEVICE
 
     def _load_lang(self, lang: str) -> None:
         if lang in self._models:
@@ -81,7 +76,17 @@ class MMSTTS:
                 f"Check MODEL_MMS_TTS_{lang.upper()} in your .env file."
             ) from exc
         model.eval()
-        model.to(DEVICE)
+        try:
+            model.to(DEVICE)
+            self._device = DEVICE
+        except RuntimeError as exc:
+            if DEVICE == "cuda" and "out of memory" in str(exc).lower():
+                logger.warning("CUDA ran out of memory for MMS TTS %s; falling back to CPU.", lang)
+                torch.cuda.empty_cache()
+                model.to(device="cpu", dtype=torch.float32)
+                self._device = "cpu"
+            else:
+                raise
         self._tokenizers[lang] = tokenizer
         self._models[lang] = model
         logger.info("MMS TTS '%s' ready.", lang)
@@ -97,7 +102,7 @@ class MMSTTS:
         Returns:
             Tuple of (waveform_float32_np, sample_rate_hz).
         """
-        lang = lang.lower()
+        lang = normalize_language(lang)
         self._load_lang(lang)
 
         tokenizer = self._tokenizers[lang]

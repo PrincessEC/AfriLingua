@@ -11,6 +11,8 @@ from typing import Optional
 
 from lingua import Language, LanguageDetectorBuilder
 
+from src.languages import LANGUAGE_REGISTRY
+
 logger = logging.getLogger(__name__)
 
 # Lingua only supports ENGLISH and YORUBA from our target set.
@@ -26,16 +28,23 @@ _LINGUA_TO_NAME: dict[Language, str] = {
 # Minimal word-list heuristics for languages lingua doesn't cover
 _IGBO_WORDS  = {"kedu", "nne", "nna", "ọ", "gị", "anyị", "daalụ", "nnoo", "biko", "ụlọ", "aha", "nọ"}
 _HAUSA_WORDS = {"yaya", "kai", "ina", "gida", "kana", "tafi", "yaro", "wannan", "alhaji", "nagode", "sannu"}
+_HEURISTIC_WORDS: dict[str, set[str]] = {
+    name: {word.lower() for word in spec.detection_words}
+    for name, spec in LANGUAGE_REGISTRY.items()
+    if spec.detection_words
+}
 
 
 def _wordlist_detect(text: str) -> Optional[str]:
-    """Return 'igbo' or 'hausa' if enough known words are found, else None."""
+    """Return a configured heuristic language if enough known words are found."""
     tokens = set(text.lower().split())
-    igbo_hits  = len(tokens & _IGBO_WORDS)
-    hausa_hits = len(tokens & _HAUSA_WORDS)
-    if igbo_hits == 0 and hausa_hits == 0:
+    scores = {lang: len(tokens & words) for lang, words in _HEURISTIC_WORDS.items()}
+    if not scores:
         return None
-    return "igbo" if igbo_hits >= hausa_hits else "hausa"
+    best_lang, best_score = max(scores.items(), key=lambda item: item[1])
+    if best_score == 0:
+        return None
+    return best_lang
 
 _DEFAULT_CONFIDENCE_THRESHOLD = 0.70
 

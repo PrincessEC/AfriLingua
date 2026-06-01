@@ -23,6 +23,8 @@ _MODEL_SIZE_MAP = {
     "openai/whisper-small":  "small",
     "openai/whisper-medium": "medium",
     "openai/whisper-large":  "large",
+    "openai/whisper-large-v2": "large-v2",
+    "openai/whisper-large-v3": "large-v3",
 }
 
 
@@ -37,6 +39,7 @@ class WhisperASR:
 
     def __init__(self) -> None:
         self._model: Optional[whisper.Whisper] = None
+        self._device: str = "cuda" if DEVICE == "cuda" else "cpu"
 
     def _load(self) -> None:
         if self._model is not None:
@@ -44,11 +47,25 @@ class WhisperASR:
         size = _MODEL_SIZE_MAP.get(MODEL_WHISPER, "small")
         device = "cuda" if DEVICE == "cuda" else "cpu"
         logger.info("Loading Whisper '%s' on %s ...", size, device)
-        self._model = whisper.load_model(
-            size,
-            device=device,
-            download_root=str(HF_CACHE / "whisper"),
-        )
+        try:
+            self._model = whisper.load_model(
+                size,
+                device=device,
+                download_root=str(HF_CACHE / "whisper"),
+            )
+            self._device = device
+        except RuntimeError as exc:
+            if device == "cuda" and "out of memory" in str(exc).lower():
+                logger.warning("CUDA ran out of memory for Whisper; falling back to CPU.")
+                torch.cuda.empty_cache()
+                self._model = whisper.load_model(
+                    size,
+                    device="cpu",
+                    download_root=str(HF_CACHE / "whisper"),
+                )
+                self._device = "cpu"
+            else:
+                raise
         logger.info("Whisper ready.")
 
     def transcribe(
@@ -85,7 +102,7 @@ class WhisperASR:
             audio_t = F.resample(audio_t, sample_rate, 16000)
             audio = audio_t.squeeze(0).numpy()
 
-        result = self._model.transcribe(audio, language=language, fp16=DEVICE == "cuda")
+        result = self._model.transcribe(audio, language=language, fp16=self._device == "cuda")
         return result.get("text", "").strip()
 
     def is_loaded(self) -> bool:

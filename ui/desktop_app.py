@@ -32,7 +32,7 @@ from typing import Optional
 # ── Qt availability check ─────────────────────────────────────────────────────
 try:
     from PyQt6.QtCore import (
-        Qt, QThread, QObject, pyqtSignal, pyqtSlot,
+        Qt, QThread, QObject, QTimer, pyqtSignal, pyqtSlot,
     )
     from PyQt6.QtGui import (
         QAction, QCloseEvent, QColor, QFont, QIcon, QPainter, QPixmap, QTextCursor,
@@ -65,10 +65,17 @@ from src.document.translator import DocumentTranslator
 from src.model_loader import load_all, TOTAL_STEPS
 from src.pipeline.realtime_pipeline import RealtimePipeline, TranslationResult
 from src.translation.engine import TranslationEngine
+from src.languages import TEXT_LANGUAGE_CHOICES
 from src.asr.whisper_asr import WhisperASR
 from src.asr.mms_asr import MMSASR
 from src.tts.english_tts import EnglishTTS
 from src.tts.mms_tts import MMSTTS
+from src.runtime.resources import (
+    clear_accelerator_cache,
+    get_runtime_snapshot,
+    input_device_choices,
+    parse_input_device,
+)
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s  %(message)s")
 logger = logging.getLogger(__name__)
@@ -78,11 +85,11 @@ _engine    = TranslationEngine()
 _whisper   = WhisperASR()
 _mms_asr   = MMSASR()
 _detector  = LanguageDetector()
-_doc_trans = DocumentTranslator()
+_doc_trans = DocumentTranslator(engine=_engine, detector=_detector)
 _mms_tts   = MMSTTS()
 _eng_tts   = EnglishTTS()
 
-_LANGUAGES = ["english", "igbo", "yoruba", "hausa"]
+_LANGUAGES = TEXT_LANGUAGE_CHOICES
 
 
 def _gpu_unavailable_text(prefix: str = "GPU") -> str:
@@ -782,6 +789,11 @@ class LiveTab(QWidget):
         self._tgt_combo.addItems([l.capitalize() for l in _LANGUAGES])
         self._tgt_combo.setCurrentText("Igbo")
         lang_row.addWidget(self._tgt_combo)
+        lang_row.addSpacing(16)
+        lang_row.addWidget(QLabel("Microphone"))
+        self._mic_combo = QComboBox()
+        self._mic_combo.addItems(input_device_choices())
+        lang_row.addWidget(self._mic_combo)
         lang_row.addStretch()
         root.addLayout(lang_row)
 
@@ -844,6 +856,7 @@ class LiveTab(QWidget):
             engine=_engine,
             mms_tts=_mms_tts,
             eng_tts=_eng_tts,
+            input_device=parse_input_device(self._mic_combo.currentText()),
         )
         self._pipeline.start_microphone()
         self._set_running(True)
@@ -862,15 +875,13 @@ class LiveTab(QWidget):
 
     def _set_running(self, running: bool) -> None:
         self._status_label.setText("Interpreting ..." if running else "Stopped")
-        self._status_label.setText("Interpreting ..." if running else "Stopped")
-        self._status_label.setStyleSheet(
-            "color: #1d6f5f; font-weight: bold;" if running else "color: #9a4b22; font-weight: bold;"
-            "color: #1d6f5f; font-weight: bold;" if running else "color: #9a4b22; font-weight: bold;"
-        )
+        style = "color: #1d6f5f; font-weight: bold;" if running else "color: #9a4b22; font-weight: bold;"
+        self._status_label.setStyleSheet(style)
         self._start_btn.setEnabled(not running)
         self._stop_btn.setEnabled(running)
         self._src_combo.setEnabled(not running)
         self._tgt_combo.setEnabled(not running)
+        self._mic_combo.setEnabled(not running)
 
     def _clear(self) -> None:
         self._transcript.clear()
@@ -1132,6 +1143,27 @@ class SettingsTab(QWidget):
         root.setContentsMargins(14, 14, 14, 14)
 
         # ── Hardware & Device ───────────────────────────────────────────
+        runtime_group = QGroupBox("Workspace Resources")
+        runtime_layout = QVBoxLayout(runtime_group)
+        runtime_layout.setSpacing(8)
+        self._runtime_lbl = QLabel()
+        self._runtime_lbl.setWordWrap(True)
+        runtime_layout.addWidget(self._runtime_lbl)
+        runtime_buttons = QHBoxLayout()
+        refresh_btn = QPushButton("Refresh")
+        refresh_btn.clicked.connect(self._refresh_runtime)
+        runtime_buttons.addWidget(refresh_btn)
+        clear_btn = QPushButton("Clear GPU Cache")
+        clear_btn.clicked.connect(self._clear_gpu_cache)
+        runtime_buttons.addWidget(clear_btn)
+        runtime_buttons.addStretch()
+        runtime_layout.addLayout(runtime_buttons)
+        root.addWidget(runtime_group)
+        self._refresh_runtime()
+        self._runtime_timer = QTimer(self)
+        self._runtime_timer.timeout.connect(self._refresh_runtime)
+        self._runtime_timer.start(3000)
+
         hw_group = QGroupBox("Hardware & Device")
         hw_layout = QVBoxLayout(hw_group)
         hw_layout.setSpacing(6)
@@ -1244,6 +1276,24 @@ class SettingsTab(QWidget):
 
         root.addStretch()
 
+    def _refresh_runtime(self) -> None:
+        snap = get_runtime_snapshot()
+        if snap.gpu_available:
+            text = (
+                f"GPU active: {snap.gpu_allocated_gb:.2f} GB allocated / "
+                f"{snap.gpu_total_gb:.1f} GB total. "
+                f"Reserved: {snap.gpu_reserved_gb:.2f} GB. "
+                f"App RAM: {snap.process_ram_gb:.2f} GB."
+            )
+        else:
+            text = f"CPU mode. App RAM: {snap.process_ram_gb:.2f} GB."
+        self._runtime_lbl.setText(text)
+
+    def _clear_gpu_cache(self) -> None:
+        message = clear_accelerator_cache()
+        self._refresh_runtime()
+        QMessageBox.information(self, "AfriLingua", message)
+
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Main Window
@@ -1272,16 +1322,22 @@ class MainWindow(QMainWindow):
         tabs.addTab(self._text_tab, "Text")
         tabs.addTab(self._doc_tab, "Documents")
         tabs.addTab(self._settings_tab, "Settings")
-        tabs.addTab(self._live_tab, "Live")
-        tabs.addTab(self._text_tab, "Text")
-        tabs.addTab(self._doc_tab, "Documents")
-        tabs.addTab(self._settings_tab, "Settings")
         self.setCentralWidget(tabs)
 
     def _setup_status_bar(self) -> None:
         bar = QStatusBar()
-        _profile_colors = {"high": "#1d6f5f", "mid": "#7a5c00", "low": "#9a4b22"}
-        _pc = _profile_colors.get(HARDWARE_PROFILE, "#17201b")
+        snap = get_runtime_snapshot()
+        if snap.gpu_available:
+            resource_text = (
+                f"GPU {snap.gpu_allocated_gb:.2f}/{snap.gpu_total_gb:.1f} GB  |  "
+                f"RAM {snap.process_ram_gb:.2f} GB"
+            )
+        else:
+            resource_text = f"CPU mode  |  RAM {snap.process_ram_gb:.2f} GB"
+        bar.showMessage("AfriLingua workspace ready")
+        bar.addPermanentWidget(QLabel(resource_text))
+        self.setStatusBar(bar)
+        return
         _profile_colors = {"high": "#1d6f5f", "mid": "#7a5c00", "low": "#9a4b22"}
         _pc = _profile_colors.get(HARDWARE_PROFILE, "#17201b")
         profile_lbl = QLabel(
@@ -1309,11 +1365,9 @@ class MainWindow(QMainWindow):
         menu.addSeparator()
 
         start_action = QAction("Start Interpretation", menu)
-        start_action = QAction("Start Interpretation", menu)
         start_action.triggered.connect(self._live_tab.start_interpretation)
         menu.addAction(start_action)
 
-        stop_action = QAction("Stop Interpretation", menu)
         stop_action = QAction("Stop Interpretation", menu)
         stop_action.triggered.connect(self._live_tab.stop_interpretation)
         menu.addAction(stop_action)

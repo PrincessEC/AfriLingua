@@ -40,9 +40,11 @@ class AudioCapture:
         on_utterance: Callable[[np.ndarray], None],
         sample_rate: int = SAMPLE_RATE,
         chunk_duration_s: float = CHUNK_DURATION_S,
+        input_device: int | str | None = None,
     ) -> None:
         self.sample_rate = sample_rate
         self.chunk_samples = int(sample_rate * chunk_duration_s)
+        self.input_device = input_device
         self._vad = VADProcessor(on_utterance=on_utterance, sample_rate=sample_rate)
         self._stream: Optional[sd.InputStream] = None
         self._lock = threading.Lock()
@@ -64,12 +66,17 @@ class AudioCapture:
         with self._lock:
             if self._stream is not None:
                 return
-            logger.info("Opening mic stream at %d Hz …", self.sample_rate)
+            logger.info(
+                "Opening mic stream at %d Hz on %s ...",
+                self.sample_rate,
+                self.input_device if self.input_device is not None else "default input",
+            )
             self._stream = sd.InputStream(
                 samplerate=self.sample_rate,
                 channels=1,
                 dtype="float32",
                 blocksize=self.chunk_samples,
+                device=self.input_device,
                 callback=self._audio_callback,
             )
             self._stream.start()
