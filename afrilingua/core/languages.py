@@ -138,7 +138,7 @@ class LanguageRegistry:
     def _put(self, spec: LanguageSpec) -> None:
         self._specs[spec.name] = spec
         self._aliases[_norm(spec.name)] = spec.name
-        self._aliases[spec.nllb_code.lower()] = spec.name
+        self._aliases[_norm(spec.nllb_code)] = spec.name
         for alias in spec.aliases:
             self._aliases[_norm(alias)] = spec.name
         for code in (spec.iso639_1, spec.iso639_3):
