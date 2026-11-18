@@ -37,3 +37,10 @@ export async function translateText(
   });
   return data.results;
 }
+
+export async function submitContribution(payload: any) {
+  return await fetchApi('/contributions', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+}
