@@ -46,3 +46,23 @@ class OfflineModelMissingError(ModelLoadError):
 class InvalidInputError(AfriLinguaError, ValueError):
     code = "invalid_input"
     status = 400
+
+
+class NotFoundError(AfriLinguaError, LookupError):
+    code = "not_found"
+    status = 404
+
+
+class UnauthorizedError(AfriLinguaError):
+    code = "unauthorized"
+    status = 401
+
+
+class PayloadTooLargeError(AfriLinguaError):
+    code = "payload_too_large"
+    status = 413
+
+
+def error_payload(exc: AfriLinguaError) -> dict:
+    """Standard JSON error body used by every HTTP/MCP surface."""
+    return {"error": {"code": exc.code, "message": str(exc)}}
