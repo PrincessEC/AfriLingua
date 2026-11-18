@@ -2,11 +2,11 @@
 from __future__ import annotations
 
 import logging
-import numpy as np
-import torch
-from transformers import VitsModel, AutoTokenizer
 
-from afrilingua.backends.base import TTSBackend, SpeechAudio
+import torch
+from transformers import AutoTokenizer, VitsModel
+
+from afrilingua.backends.base import SpeechAudio, TTSBackend
 from afrilingua.core.hardware import resolve_runtime
 
 logger = logging.getLogger(__name__)
@@ -22,14 +22,14 @@ class MMSTTSBackend(TTSBackend):
     def load_language(self, lang: str, model_id: str) -> None:
         if lang in self._models:
             return
-        
+
         logger.info("Loading TTS model %s for %s", model_id, lang)
-        
+
         tokenizer = AutoTokenizer.from_pretrained(model_id)
         model = VitsModel.from_pretrained(model_id).to(self.plan.device)
         if self.plan.torch_dtype == "float16":
             model.half()
-            
+
         self._tokenizers[lang] = tokenizer
         self._models[lang] = model
 
@@ -42,16 +42,16 @@ class MMSTTSBackend(TTSBackend):
         spec = get_registry().get(lang)
         if not spec.mms_tts_model:
             raise ValueError(f"No TTS model for {lang}")
-            
+
         self.load_language(lang, spec.mms_tts_model)
-        
+
         inputs = self._tokenizers[lang](text, return_tensors="pt").to(self.plan.device)
-        
+
         with torch.inference_mode():
             waveform = self._models[lang](**inputs).waveform[0]
-            
+
         return SpeechAudio(waveform.cpu().numpy(), 16000)
-        
+
     def is_loaded(self) -> bool:
         return len(self._models) > 0
 

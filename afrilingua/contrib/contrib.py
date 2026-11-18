@@ -1,12 +1,14 @@
 """Contribution Store."""
 from __future__ import annotations
+
 import sqlite3
 import threading
 import uuid
 from datetime import datetime
-from pathlib import Path
-from afrilingua.tm.tm import TranslationMemory
+
 from afrilingua.core.settings import get_settings
+from afrilingua.tm.tm import TranslationMemory
+
 
 class ContributionStore:
     def __init__(self, tm: TranslationMemory | None = None) -> None:
@@ -16,7 +18,7 @@ class ContributionStore:
         self.db = sqlite3.connect(path / "contrib.sqlite", check_same_thread=False)
         self._init_db()
         self._lock = threading.RLock()
-        
+
     def _init_db(self) -> None:
         with self.db:
             self.db.execute("""
@@ -37,12 +39,12 @@ class ContributionStore:
         # Validate payload per contract §5
         if not payload.get("consent"):
             raise ValueError("Consent required")
-        
+
         contrib_id = str(uuid.uuid4())
         with self.db:
             self.db.execute(
                 "INSERT INTO contributions VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
-                (contrib_id, payload["kind"], payload["src_lang"], payload["tgt_lang"], 
+                (contrib_id, payload["kind"], payload["src_lang"], payload["tgt_lang"],
                  payload["source_text"], payload["target_text"], "pending", payload["license"], datetime.utcnow().isoformat())
             )
         return {"id": contrib_id, "status": "pending"}

@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import logging
+
 import numpy as np
 from faster_whisper import WhisperModel
 
@@ -21,12 +22,12 @@ class FasterWhisperBackend(ASRBackend):
     def load(self) -> None:
         if self.is_loaded():
             return
-        
+
         device = self.plan.device
         compute_type = self.plan.compute_type
-        
+
         logger.info("Loading faster-whisper %s (device=%s, compute=%s)", self.model_size, device, compute_type)
-        
+
         self._model = WhisperModel(
             self.model_size,
             device=device,
@@ -47,19 +48,19 @@ class FasterWhisperBackend(ASRBackend):
     def transcribe(self, audio: np.ndarray, lang: str) -> Transcript:
         if not self.is_loaded():
             self.load()
-        
+
         segments, info = self._model.transcribe(
-            audio, 
-            beam_size=1, 
+            audio,
+            beam_size=1,
             language=lang if lang != "english" else "en"
         )
-        
+
         full_segments = []
         full_text = []
         for s in segments:
             full_segments.append(Segment(start=s.start, end=s.end, text=s.text))
             full_text.append(s.text)
-            
+
         return Transcript(
             text=" ".join(full_text),
             language=lang,

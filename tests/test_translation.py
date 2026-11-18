@@ -4,6 +4,7 @@ Round-trip and smoke tests for TranslationEngine.
 Run with: pytest tests/test_translation.py -v
 """
 import pytest
+
 from src.translation import TranslationEngine
 
 

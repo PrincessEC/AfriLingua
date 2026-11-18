@@ -6,13 +6,12 @@ import threading
 import uuid
 from datetime import datetime
 from pathlib import Path
-from typing import Any
 
-import numpy as np
 from rapidfuzz import fuzz
 
-from afrilingua.engine import TMMatch, TranslationMemoryProtocol
 from afrilingua.core.settings import get_settings
+from afrilingua.engine import TMMatch, TranslationMemoryProtocol
+
 
 class TranslationMemory(TranslationMemoryProtocol):
     def __init__(self, path: Path) -> None:
@@ -21,7 +20,7 @@ class TranslationMemory(TranslationMemoryProtocol):
         self.db = sqlite3.connect(path / "tm.sqlite", check_same_thread=False)
         self._init_db()
         self._lock = threading.RLock()
-        
+
     def _init_db(self) -> None:
         with self.db:
             self.db.execute("""
@@ -48,13 +47,13 @@ class TranslationMemory(TranslationMemoryProtocol):
                 (src_lang, tgt_lang, f"%{text}%")
             )
             rows = cursor.fetchall()
-            
+
         matches = []
         for r in rows:
             # Simple score based on fuzz ratio
             score = fuzz.ratio(text, r[1]) / 100.0
             matches.append(TMMatch(id=r[0], source=r[1], target=r[2], score=score, approved=bool(r[3]), origin=r[4]))
-        
+
         return sorted(matches, key=lambda x: x.score, reverse=True)[:k]
 
     def add(

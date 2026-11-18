@@ -2,10 +2,11 @@
 from __future__ import annotations
 
 import logging
+
 import torch
 from transformers import AutoModelForCTC, AutoProcessor
 
-from afrilingua.backends.base import ASRBackend, Segment, Transcript
+from afrilingua.backends.base import ASRBackend, Transcript
 from afrilingua.core.hardware import resolve_runtime
 
 logger = logging.getLogger(__name__)
@@ -23,9 +24,9 @@ class MMSASRBackend(ASRBackend):
     def load(self) -> None:
         if self.is_loaded():
             return
-        
+
         logger.info("Loading MMS base model %s", self.model_id)
-        
+
         self._processor = AutoProcessor.from_pretrained(self.model_id)
         self._model = AutoModelForCTC.from_pretrained(self.model_id).to(self.plan.device)
         if self.plan.torch_dtype == "float16":
@@ -42,7 +43,7 @@ class MMSASRBackend(ASRBackend):
     def _switch_adapter(self, lang: str) -> None:
         if self._loaded_adapter == lang:
             return
-        
+
         logger.info("Switching MMS adapter to %s", lang)
         self._model.load_adapter(lang)
         self._loaded_adapter = lang
@@ -53,14 +54,14 @@ class MMSASRBackend(ASRBackend):
     def transcribe(self, audio: np.ndarray, lang: str) -> Transcript:
         if not self.is_loaded():
             self.load()
-        
+
         self._switch_adapter(lang)
-        
+
         inputs = self._processor(audio, sampling_rate=16000, return_tensors="pt").to(self.plan.device)
-        
+
         with torch.inference_mode():
             logits = self._model(**inputs).logits
             predicted_ids = torch.argmax(logits, dim=-1)
             transcription = self._processor.batch_decode(predicted_ids)[0]
-            
+
         return Transcript(text=transcription, language=lang)
