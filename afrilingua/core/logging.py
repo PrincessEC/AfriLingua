@@ -1,4 +1,5 @@
 """Logging setup (stdlib, optional JSON output)."""
+
 from __future__ import annotations
 
 import json
@@ -23,7 +24,9 @@ class _JsonFormatter(logging.Formatter):
 def configure_logging(level: str = "INFO", *, json_output: bool = False) -> None:
     handler = logging.StreamHandler(sys.stderr)
     handler.setFormatter(
-        _JsonFormatter() if json_output else logging.Formatter("%(asctime)s %(levelname)-7s %(name)s: %(message)s", "%H:%M:%S")
+        _JsonFormatter()
+        if json_output
+        else logging.Formatter("%(asctime)s %(levelname)-7s %(name)s: %(message)s", "%H:%M:%S")
     )
     root = logging.getLogger()
     root.handlers[:] = [handler]

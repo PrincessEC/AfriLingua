@@ -1,4 +1,5 @@
 """Contribution Store."""
+
 from __future__ import annotations
 
 import sqlite3
@@ -44,10 +45,20 @@ class ContributionStore:
         with self.db:
             self.db.execute(
                 "INSERT INTO contributions VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
-                (contrib_id, payload["kind"], payload["src_lang"], payload["tgt_lang"],
-                 payload["source_text"], payload["target_text"], "pending", payload["license"], datetime.utcnow().isoformat())
+                (
+                    contrib_id,
+                    payload["kind"],
+                    payload["src_lang"],
+                    payload["tgt_lang"],
+                    payload["source_text"],
+                    payload["target_text"],
+                    "pending",
+                    payload["license"],
+                    datetime.utcnow().isoformat(),
+                ),
             )
         return {"id": contrib_id, "status": "pending"}
+
 
 def open_contribution_store(tm: TranslationMemory | None = None) -> ContributionStore:
     return ContributionStore(tm)

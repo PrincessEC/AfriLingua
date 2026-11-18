@@ -1,4 +1,5 @@
 """Heuristic Language Identification."""
+
 from __future__ import annotations
 
 from afrilingua.backends.base import LanguageIdentifier

@@ -1,4 +1,5 @@
 """AfriLingua — offline-first speech & translation engine for African languages."""
+
 from __future__ import annotations
 
 __all__ = ["__version__"]

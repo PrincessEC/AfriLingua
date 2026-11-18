@@ -12,6 +12,7 @@ Entry format::
      "mms_tts_model": "facebook/mms-tts-swh", "aliases": ["kiswahili", "sw"],
      "display_name": "Swahili", "native_name": "Kiswahili"}
 """
+
 from __future__ import annotations
 
 import json
@@ -35,12 +36,12 @@ def _norm(value: str) -> str:
 
 @dataclass(frozen=True)
 class LanguageSpec:
-    name: str                                   # canonical key, e.g. "yoruba"
-    nllb_code: str                              # e.g. "yor_Latn"
+    name: str  # canonical key, e.g. "yoruba"
+    nllb_code: str  # e.g. "yor_Latn"
     display_name: str = ""
     native_name: str = ""
-    iso639_1: str | None = None                 # "yo"
-    iso639_3: str | None = None                 # "yor"
+    iso639_1: str | None = None  # "yo"
+    iso639_3: str | None = None  # "yor"
     mms_asr_code: str | None = None
     mms_tts_model: str | None = None
     whisper_lang: str | None = None
@@ -68,29 +69,82 @@ class LanguageSpec:
 
 _BUILTINS: tuple[LanguageSpec, ...] = (
     LanguageSpec(
-        name="english", nllb_code="eng_Latn", display_name="English", native_name="English",
-        iso639_1="en", iso639_3="eng", whisper_lang="en",
-        mms_tts_model="facebook/mms-tts-eng", aliases=("en", "eng"), builtin=True,
-    ),
-    LanguageSpec(
-        name="igbo", nllb_code="ibo_Latn", display_name="Igbo", native_name="Asụsụ Igbo",
-        iso639_1="ig", iso639_3="ibo", mms_asr_code="ibo",
-        mms_tts_model="rnjema-unima/mms-tts-ibo-baseline", aliases=("ig", "ibo"),
-        detection_words=("kedu", "nne", "nna", "anyị", "anyi", "daalụ", "daalu", "biko", "ụlọ", "nnọọ", "ndewo", "gị", "ọ", "dị"),
+        name="english",
+        nllb_code="eng_Latn",
+        display_name="English",
+        native_name="English",
+        iso639_1="en",
+        iso639_3="eng",
+        whisper_lang="en",
+        mms_tts_model="facebook/mms-tts-eng",
+        aliases=("en", "eng"),
         builtin=True,
     ),
     LanguageSpec(
-        name="yoruba", nllb_code="yor_Latn", display_name="Yoruba", native_name="Èdè Yorùbá",
-        iso639_1="yo", iso639_3="yor", mms_asr_code="yor",
-        mms_tts_model="facebook/mms-tts-yor", aliases=("yo", "yor"),
+        name="igbo",
+        nllb_code="ibo_Latn",
+        display_name="Igbo",
+        native_name="Asụsụ Igbo",
+        iso639_1="ig",
+        iso639_3="ibo",
+        mms_asr_code="ibo",
+        mms_tts_model="rnjema-unima/mms-tts-ibo-baseline",
+        aliases=("ig", "ibo"),
+        detection_words=(
+            "kedu",
+            "nne",
+            "nna",
+            "anyị",
+            "anyi",
+            "daalụ",
+            "daalu",
+            "biko",
+            "ụlọ",
+            "nnọọ",
+            "ndewo",
+            "gị",
+            "ọ",
+            "dị",
+        ),
+        builtin=True,
+    ),
+    LanguageSpec(
+        name="yoruba",
+        nllb_code="yor_Latn",
+        display_name="Yoruba",
+        native_name="Èdè Yorùbá",
+        iso639_1="yo",
+        iso639_3="yor",
+        mms_asr_code="yor",
+        mms_tts_model="facebook/mms-tts-yor",
+        aliases=("yo", "yor"),
         detection_words=("ẹ", "ṣé", "kú", "àárọ̀", "ọ̀rẹ́", "mo", "ni", "àti", "jọ̀wọ́", "ẹ̀kọ́"),
         builtin=True,
     ),
     LanguageSpec(
-        name="hausa", nllb_code="hau_Latn", display_name="Hausa", native_name="Harshen Hausa",
-        iso639_1="ha", iso639_3="hau", mms_asr_code="hau",
-        mms_tts_model="facebook/mms-tts-hau", aliases=("ha", "hau"),
-        detection_words=("sannu", "nagode", "yaya", "gida", "wannan", "kuma", "ina", "kai", "ne", "ce", "da", "zuwa"),
+        name="hausa",
+        nllb_code="hau_Latn",
+        display_name="Hausa",
+        native_name="Harshen Hausa",
+        iso639_1="ha",
+        iso639_3="hau",
+        mms_asr_code="hau",
+        mms_tts_model="facebook/mms-tts-hau",
+        aliases=("ha", "hau"),
+        detection_words=(
+            "sannu",
+            "nagode",
+            "yaya",
+            "gida",
+            "wannan",
+            "kuma",
+            "ina",
+            "kai",
+            "ne",
+            "ce",
+            "da",
+            "zuwa",
+        ),
         builtin=True,
     ),
 )
@@ -119,7 +173,9 @@ def _coerce(raw: dict[str, Any]) -> LanguageSpec:
         mms_tts_model=_opt("mms_tts_model") or _opt("tts_model"),
         whisper_lang=_opt("whisper_lang"),
         aliases=tuple(_norm(str(a)) for a in raw.get("aliases", []) if str(a).strip()),
-        detection_words=tuple(str(w).strip().lower() for w in raw.get("detection_words", []) if str(w).strip()),
+        detection_words=tuple(
+            str(w).strip().lower() for w in raw.get("detection_words", []) if str(w).strip()
+        ),
     )
 
 

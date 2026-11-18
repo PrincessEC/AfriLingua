@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import logging
+from typing import Any
 
 import ctranslate2
 from transformers import AutoTokenizer
@@ -25,13 +26,14 @@ class CT2NLLBBackend(MTBackend):
     def load(self) -> None:
         if self.is_loaded():
             return
-
+        
         # Determine device/compute from plan
         device = self.plan.device
         compute_type = self.plan.compute_type
-
+        
         logger.info("Loading CT2 NLLB from %s (device=%s, compute=%s)", self.model_dir, device, compute_type)
-
+        
+        # Fix: Cast to handle AutoTokenizer type
         self._tokenizer = AutoTokenizer.from_pretrained(self.model_dir, src_lang="eng_Latn", tgt_lang="eng_Latn")
         self._translator = ctranslate2.Translator(
             self.model_dir,
@@ -41,7 +43,7 @@ class CT2NLLBBackend(MTBackend):
         )
 
     def is_loaded(self) -> bool:
-        return self._translator is not None
+        return self._translator is not None and self._tokenizer is not None
 
     def unload(self) -> None:
         self._translator = None
@@ -58,19 +60,22 @@ class CT2NLLBBackend(MTBackend):
     ) -> list[str]:
         if not self.is_loaded():
             self.load()
-
+        
+        if self._translator is None or self._tokenizer is None:
+            raise RuntimeError("MT models not loaded")
+        
         # Map canonical registry names to NLLB codes
         src_code = self.registry.nllb_code(src_lang)
         tgt_code = self.registry.nllb_code(tgt_lang)
-
+        
         # NLLB requires source language prefix
         self._tokenizer.src_lang = src_code
         source_inputs = [f"{src_code} {t}" for t in texts]
-
+        
         # Tokenize
         tokens = self._tokenizer(source_inputs, padding=True, truncation=True, return_tensors="np")
         input_ids = tokens["input_ids"]
-
+        
         # Translate
         results = self._translator.translate_batch(
             input_ids,
@@ -78,7 +83,7 @@ class CT2NLLBBackend(MTBackend):
             max_decoding_length=max_length,
             target_prefix=[[tgt_code]] * len(texts),
         )
-
+        
         # Decode
         output_ids = [r.hypotheses[0] for r in results]
         return self._tokenizer.batch_decode(output_ids, skip_special_tokens=True)

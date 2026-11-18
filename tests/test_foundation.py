@@ -1,4 +1,5 @@
 """Foundation tests: settings, hardware plan, language registry, model manager, engine facade."""
+
 from __future__ import annotations
 
 import threading
@@ -14,9 +15,15 @@ from tests.conftest import FakeMT
 
 # ── hardware ────────────────────────────────────────────────────────────────
 
-CPU_HW = HardwareInfo(cpu_count=8, ram_gb=16, cuda_available=False, cuda_built=False, gpu_name="None", vram_gb=0)
-LOW_HW = HardwareInfo(cpu_count=4, ram_gb=4, cuda_available=False, cuda_built=False, gpu_name="None", vram_gb=0)
-GPU_HW = HardwareInfo(cpu_count=8, ram_gb=32, cuda_available=True, cuda_built=True, gpu_name="RTX", vram_gb=12)
+CPU_HW = HardwareInfo(
+    cpu_count=8, ram_gb=16, cuda_available=False, cuda_built=False, gpu_name="None", vram_gb=0
+)
+LOW_HW = HardwareInfo(
+    cpu_count=4, ram_gb=4, cuda_available=False, cuda_built=False, gpu_name="None", vram_gb=0
+)
+GPU_HW = HardwareInfo(
+    cpu_count=8, ram_gb=32, cuda_available=True, cuda_built=True, gpu_name="RTX", vram_gb=12
+)
 
 
 def test_cpu_plan_uses_int8():
@@ -43,6 +50,7 @@ def test_whisper_id_normalized():
 
 # ── languages ───────────────────────────────────────────────────────────────
 
+
 def test_registry_aliases():
     reg = get_registry()
     assert reg.normalize("YO") == "yoruba"
@@ -54,13 +62,16 @@ def test_registry_aliases():
 
 def test_register_language_persists(tmp_path):
     reg = get_registry()
-    spec = reg.register({"name": "Swahili", "nllb_code": "swh_Latn", "aliases": ["sw"], "mms_asr_code": "swh"})
+    spec = reg.register(
+        {"name": "Swahili", "nllb_code": "swh_Latn", "aliases": ["sw"], "mms_asr_code": "swh"}
+    )
     assert spec.name == "swahili"
     assert reg.normalize("sw") == "swahili"
     assert (reg._user_file).exists()
 
 
 # ── model manager ───────────────────────────────────────────────────────────
+
 
 def test_manager_loads_once_under_concurrency():
     created = []
@@ -82,6 +93,7 @@ def test_manager_loads_once_under_concurrency():
 
 
 # ── engine facade ───────────────────────────────────────────────────────────
+
 
 def test_translate_passthrough_cache_and_mt(fake_engine):
     r = fake_engine.translate(["Good  morning", "", "Good morning"], "english", "yoruba")

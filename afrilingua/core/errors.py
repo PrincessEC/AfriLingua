@@ -1,4 +1,5 @@
 """Typed error hierarchy. API layers map these to HTTP / MCP errors."""
+
 from __future__ import annotations
 
 

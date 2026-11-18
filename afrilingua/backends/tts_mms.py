@@ -2,11 +2,10 @@
 from __future__ import annotations
 
 import logging
-
 import torch
-from transformers import AutoTokenizer, VitsModel
+from transformers import VitsModel, AutoTokenizer
 
-from afrilingua.backends.base import SpeechAudio, TTSBackend
+from afrilingua.backends.base import TTSBackend, SpeechAudio
 from afrilingua.core.hardware import resolve_runtime
 
 logger = logging.getLogger(__name__)
@@ -19,17 +18,25 @@ class MMSTTSBackend(TTSBackend):
         self._models: dict[str, VitsModel] = {}
         self._tokenizers: dict[str, AutoTokenizer] = {}
 
+    def load(self, lang: str | None = None) -> None:
+        if lang:
+            # Load specific language model
+            from afrilingua.core.languages import get_registry
+            spec = get_registry().get(lang)
+            if spec.mms_tts_model:
+                self.load_language(lang, spec.mms_tts_model)
+
     def load_language(self, lang: str, model_id: str) -> None:
         if lang in self._models:
             return
-
+        
         logger.info("Loading TTS model %s for %s", model_id, lang)
-
+        
         tokenizer = AutoTokenizer.from_pretrained(model_id)
         model = VitsModel.from_pretrained(model_id).to(self.plan.device)
         if self.plan.torch_dtype == "float16":
             model.half()
-
+            
         self._tokenizers[lang] = tokenizer
         self._models[lang] = model
 
@@ -42,16 +49,18 @@ class MMSTTSBackend(TTSBackend):
         spec = get_registry().get(lang)
         if not spec.mms_tts_model:
             raise ValueError(f"No TTS model for {lang}")
-
+            
         self.load_language(lang, spec.mms_tts_model)
-
+        
         inputs = self._tokenizers[lang](text, return_tensors="pt").to(self.plan.device)
-
+        
         with torch.inference_mode():
-            waveform = self._models[lang](**inputs).waveform[0]
-
+            # Fix: Ensure output is accessed correctly, asserting model is loaded
+            model = self._models[lang]
+            waveform = model(**inputs).waveform[0]
+            
         return SpeechAudio(waveform.cpu().numpy(), 16000)
-
+        
     def is_loaded(self) -> bool:
         return len(self._models) > 0
 

@@ -1,4 +1,5 @@
 """Translation Memory implementation."""
+
 from __future__ import annotations
 
 import sqlite3
@@ -36,7 +37,9 @@ class TranslationMemory(TranslationMemoryProtocol):
                     created_at TEXT
                 )
             """)
-            self.db.execute("CREATE INDEX IF NOT EXISTS idx_source ON entries (src_lang, tgt_lang, source_norm)")
+            self.db.execute(
+                "CREATE INDEX IF NOT EXISTS idx_source ON entries (src_lang, tgt_lang, source_norm)"
+            )
 
     def lookup(self, text: str, src_lang: str, tgt_lang: str, *, k: int = 3) -> list[TMMatch]:
         # Simplified lookup for now, vector index to follow.
@@ -44,7 +47,7 @@ class TranslationMemory(TranslationMemoryProtocol):
             # Using LIKE for fuzzy, ideally replace with vector index
             cursor = self.db.execute(
                 "SELECT id, source, target, approved, origin FROM entries WHERE src_lang=? AND tgt_lang=? AND source LIKE ?",
-                (src_lang, tgt_lang, f"%{text}%")
+                (src_lang, tgt_lang, f"%{text}%"),
             )
             rows = cursor.fetchall()
 
@@ -52,7 +55,9 @@ class TranslationMemory(TranslationMemoryProtocol):
         for r in rows:
             # Simple score based on fuzz ratio
             score = fuzz.ratio(text, r[1]) / 100.0
-            matches.append(TMMatch(id=r[0], source=r[1], target=r[2], score=score, approved=bool(r[3]), origin=r[4]))
+            matches.append(
+                TMMatch(id=r[0], source=r[1], target=r[2], score=score, approved=bool(r[3]), origin=r[4])
+            )
 
         return sorted(matches, key=lambda x: x.score, reverse=True)[:k]
 
@@ -70,9 +75,20 @@ class TranslationMemory(TranslationMemoryProtocol):
         with self.db:
             self.db.execute(
                 "INSERT INTO entries VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
-                (entry_id, src_lang, tgt_lang, source, source.lower().strip(), target, int(approved), origin, datetime.utcnow().isoformat())
+                (
+                    entry_id,
+                    src_lang,
+                    tgt_lang,
+                    source,
+                    source.lower().strip(),
+                    target,
+                    int(approved),
+                    origin,
+                    datetime.utcnow().isoformat(),
+                ),
             )
         return entry_id
+
 
 def open_translation_memory() -> TranslationMemory:
     return TranslationMemory(get_settings().data_dir / "tm")

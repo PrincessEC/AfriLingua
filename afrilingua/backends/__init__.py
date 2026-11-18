@@ -1,4 +1,5 @@
 """Backend contracts and concrete implementations."""
+
 from afrilingua.backends.base import (
     ASRBackend,
     Backend,

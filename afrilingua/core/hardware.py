@@ -4,6 +4,7 @@ Hardware detection and profile selection.
 CPU is the primary target; a CUDA GPU is treated as an accelerator. Detection
 is lazy and cached — importing this module never touches torch.
 """
+
 from __future__ import annotations
 
 import logging
@@ -34,10 +35,10 @@ class HardwareInfo:
 class RuntimePlan:
     """Resolved device / precision / model choices for this machine."""
 
-    device: str            # "cpu" | "cuda"
-    compute_type: str      # "int8" | "float16" | "float32" | "int8_float16"
-    torch_dtype: str       # "float32" | "float16"  (for transformers fallbacks)
-    profile: str           # "cpu-lite" | "cpu-standard" | "gpu"
+    device: str  # "cpu" | "cuda"
+    compute_type: str  # "int8" | "float16" | "float32" | "int8_float16"
+    torch_dtype: str  # "float32" | "float16"  (for transformers fallbacks)
+    profile: str  # "cpu-lite" | "cpu-standard" | "gpu"
     threads: int
     model_nllb: str
     model_whisper: str

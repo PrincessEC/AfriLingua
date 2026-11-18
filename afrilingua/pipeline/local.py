@@ -1,4 +1,5 @@
 """Local interpreter (capture -> pipeline -> play)."""
+
 from __future__ import annotations
 
 

@@ -25,6 +25,7 @@ matching docs/api-contract.md §6::
     {"type":"metrics","seq":7,"asr_ms":…,"mt_ms":…,"tts_ms":…}
     {"type":"error","code":"…","message":"…"}
 """
+
 from __future__ import annotations
 
 from collections.abc import Callable

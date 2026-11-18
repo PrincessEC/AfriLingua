@@ -8,6 +8,7 @@ Translation flow (per sentence)::
     normalize → exact LRU cache → TM exact/approved hit → MT (batched misses)
                                    ↘ fuzzy matches are returned as hints
 """
+
 from __future__ import annotations
 
 import logging
@@ -41,14 +42,15 @@ TTS_KEY = "tts"
 
 # ── Translation memory contract (implemented in afrilingua.tm) ─────────────
 
+
 @dataclass(frozen=True)
 class TMMatch:
     id: str
     source: str
     target: str
-    score: float           # 0..1 similarity of `source` to the query
+    score: float  # 0..1 similarity of `source` to the query
     approved: bool
-    origin: str = ""       # "community" | "session" | "import" | "mt"
+    origin: str = ""  # "community" | "session" | "import" | "mt"
 
 
 @runtime_checkable
@@ -162,7 +164,9 @@ class AfriLinguaEngine:
         use_tm: bool = True,
     ) -> list[TranslationResult]:
         if isinstance(texts, str):
-            raise InvalidInputError("translate() expects a sequence of strings; use translate_one() for a single string")
+            raise InvalidInputError(
+                "translate() expects a sequence of strings; use translate_one() for a single string"
+            )
         t0 = time.perf_counter()
         tgt = self.registry.normalize(tgt_lang)
         src, detected = self._resolve_src(texts, src_lang)
@@ -189,7 +193,9 @@ class AfriLinguaEngine:
                     logger.exception("Translation memory lookup failed")
             best = matches[0] if matches else None
             if best and best.approved and best.score >= self.settings.tm_exact_threshold:
-                results[i] = TranslationResult(best.target, text, src, tgt, "tm_exact", detected=detected, matches=matches)
+                results[i] = TranslationResult(
+                    best.target, text, src, tgt, "tm_exact", detected=detected, matches=matches
+                )
                 self._cache.put((src, tgt, text), best.target)
                 continue
             results[i] = TranslationResult("", text, src, tgt, "mt", detected=detected, matches=matches)
@@ -216,7 +222,9 @@ class AfriLinguaEngine:
             r.latency_ms = elapsed / max(1, len(final))
         return final
 
-    def translate_one(self, text: str, src_lang: str | None, tgt_lang: str, *, mode: TranslationMode = "live") -> TranslationResult:
+    def translate_one(
+        self, text: str, src_lang: str | None, tgt_lang: str, *, mode: TranslationMode = "live"
+    ) -> TranslationResult:
         return self.translate([text], src_lang, tgt_lang, mode=mode)[0]
 
     # ── speech ──────────────────────────────────────────────────────────────

@@ -1,4 +1,5 @@
 """Shared pytest fixtures: isolated settings + fake backends (no model downloads)."""
+
 from __future__ import annotations
 
 import numpy as np

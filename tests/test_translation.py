@@ -3,6 +3,7 @@ tests/test_translation.py
 Round-trip and smoke tests for TranslationEngine.
 Run with: pytest tests/test_translation.py -v
 """
+
 import pytest
 
 from src.translation import TranslationEngine
@@ -14,6 +15,7 @@ def engine():
 
 
 # ── Sanity: translate returns a non-empty string ──────────────────────────────
+
 
 def test_english_to_igbo(engine):
     result = engine.translate("Good morning", "english", "igbo")
@@ -32,6 +34,7 @@ def test_english_to_hausa(engine):
 
 # ── Round-trip: translate to language then back to English ────────────────────
 
+
 @pytest.mark.parametrize("target_lang", ["igbo", "yoruba", "hausa"])
 def test_roundtrip(engine, target_lang):
     original = "Welcome to the meeting."
@@ -43,6 +46,7 @@ def test_roundtrip(engine, target_lang):
 
 # ── Batch translation ─────────────────────────────────────────────────────────
 
+
 def test_batch_translation(engine):
     texts = ["Hello", "Thank you", "How are you?"]
     results = engine.translate_batch(texts, "english", "hausa")
@@ -52,6 +56,7 @@ def test_batch_translation(engine):
 
 # ── Same-language passthrough ─────────────────────────────────────────────────
 
+
 def test_same_language_passthrough(engine):
     text = "No translation needed"
     result = engine.translate(text, "english", "english")
@@ -60,12 +65,14 @@ def test_same_language_passthrough(engine):
 
 # ── Empty string ──────────────────────────────────────────────────────────────
 
+
 def test_empty_string(engine):
     result = engine.translate("", "english", "igbo")
     assert result == ""
 
 
 # ── Unsupported language raises ValueError ────────────────────────────────────
+
 
 def test_unsupported_language_raises(engine):
     with pytest.raises(ValueError):

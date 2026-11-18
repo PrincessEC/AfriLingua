@@ -2,19 +2,18 @@
 from __future__ import annotations
 
 import logging
-import queue
 import threading
-from typing import Any
-
+import queue
 import numpy as np
+from typing import Any, Optional
 
+from afrilingua.pipeline import StreamingSessionProtocol, EventCallback
 from afrilingua.engine import AfriLinguaEngine
-from afrilingua.pipeline import EventCallback
 
 logger = logging.getLogger(__name__)
 
 class StreamingSession:
-    def __init__(self, engine: AfriLinguaEngine, src_lang: str, targets: list[str],
+    def __init__(self, engine: AfriLinguaEngine, src_lang: str, targets: list[str], 
                  synthesize_audio: bool, on_event: EventCallback) -> None:
         self.engine = engine
         self.src_lang = src_lang
@@ -22,8 +21,8 @@ class StreamingSession:
         self.synthesize_audio = synthesize_audio
         self.on_event = on_event
         self._running = False
-        self._queue = queue.Queue()
-        self._thread = None
+        self._queue: queue.Queue[Any] = queue.Queue()
+        self._thread: Optional[threading.Thread] = None
 
     def start(self) -> None:
         self._running = True
@@ -54,24 +53,24 @@ class StreamingSession:
             try:
                 audio = self._queue.get(timeout=1.0)
                 if audio is None: break
-
+                
                 # Simplified pipeline:
                 # 1. ASR
                 transcript = self.engine.transcribe(audio, self.src_lang)
                 if not transcript.text: continue
-
+                
                 self.on_event({"type": "final", "text": transcript.text})
-
+                
                 # 2. MT
                 for target in self.targets:
                     result = self.engine.translate_one(transcript.text, self.src_lang, target)
                     self.on_event({"type": "translation", "lang": target, "text": result.text})
-
+                    
                     # 3. TTS
                     if self.synthesize_audio:
                         audio_out = self.engine.synthesize(result.text, target)
                         self.on_event({"type": "audio", "lang": target, "data": audio_out.waveform.tobytes()})
-
+                
             except queue.Empty:
                 continue
             except Exception as e:

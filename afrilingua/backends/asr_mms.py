@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import logging
-
+import numpy as np
 import torch
 from transformers import AutoModelForCTC, AutoProcessor
 
@@ -24,16 +24,17 @@ class MMSASRBackend(ASRBackend):
     def load(self) -> None:
         if self.is_loaded():
             return
-
+        
         logger.info("Loading MMS base model %s", self.model_id)
-
+        
         self._processor = AutoProcessor.from_pretrained(self.model_id)
         self._model = AutoModelForCTC.from_pretrained(self.model_id).to(self.plan.device)
         if self.plan.torch_dtype == "float16":
-            self._model.half()
+            if self._model is not None:
+                self._model.half()
 
     def is_loaded(self) -> bool:
-        return self._model is not None
+        return self._model is not None and self._processor is not None
 
     def unload(self) -> None:
         self._model = None
@@ -41,9 +42,9 @@ class MMSASRBackend(ASRBackend):
         self._loaded_adapter = None
 
     def _switch_adapter(self, lang: str) -> None:
-        if self._loaded_adapter == lang:
+        if self._loaded_adapter == lang or self._model is None:
             return
-
+        
         logger.info("Switching MMS adapter to %s", lang)
         self._model.load_adapter(lang)
         self._loaded_adapter = lang
@@ -54,14 +55,17 @@ class MMSASRBackend(ASRBackend):
     def transcribe(self, audio: np.ndarray, lang: str) -> Transcript:
         if not self.is_loaded():
             self.load()
-
+        
+        if self._model is None or self._processor is None:
+            raise RuntimeError("MMS model not loaded")
+        
         self._switch_adapter(lang)
-
+        
         inputs = self._processor(audio, sampling_rate=16000, return_tensors="pt").to(self.plan.device)
-
+        
         with torch.inference_mode():
             logits = self._model(**inputs).logits
             predicted_ids = torch.argmax(logits, dim=-1)
             transcription = self._processor.batch_decode(predicted_ids)[0]
-
+            
         return Transcript(text=transcription, language=lang)

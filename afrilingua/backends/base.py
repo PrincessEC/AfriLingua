@@ -15,6 +15,7 @@ Conventions
   methods are **not** required to be thread-safe — the ModelManager
   serializes access per backend instance.
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass, field
