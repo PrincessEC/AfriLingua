@@ -7,7 +7,7 @@ from afrilingua.engine import AfriLinguaEngine, build_engine
 from afrilingua.tm.tm import open_translation_memory
 from afrilingua.contrib.contrib import open_contribution_store
 
-from afrilingua.api.routers import system, translate, rooms, documents
+from afrilingua.api.routers import system, translate, rooms, documents, contributions
 from afrilingua.api.rooms import RoomManager
 
 def create_app(engine: AfriLinguaEngine | None = None, *, serve_web: bool = True) -> FastAPI:
@@ -38,5 +38,6 @@ def create_app(engine: AfriLinguaEngine | None = None, *, serve_web: bool = True
     app.include_router(translate.router)
     app.include_router(rooms.router)
     app.include_router(documents.router)
+    app.include_router(contributions.router)
         
     return app
