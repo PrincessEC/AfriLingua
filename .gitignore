@@ -1,9 +1,9 @@
-# ── Environment & secrets 
+﻿# â”€â”€ Environment & secrets 
 .env
 .env.*
 !.env.example
 
-# ── Python 
+# â”€â”€ Python 
 __pycache__/
 *.py[cod]
 *.pyo
@@ -18,66 +18,66 @@ wheels/
 .eggs/
 MANIFEST
 
-# ── Virtual environments 
+# â”€â”€ Virtual environments 
 .venv/
 venv/
 env/
 ENV/
 .virtualenv/
 
-# ── HuggingFace model cache (large binary files) 
-models/
+# â”€â”€ HuggingFace model cache (large binary files) 
+/models/
 
-# ── Downloaded & generated data 
+# â”€â”€ Downloaded & generated data 
 data/raw/
 data/processed/
 data/finetuned/
 
-# ── Test & coverage artifacts 
+# â”€â”€ Test & coverage artifacts 
 .pytest_cache/
 .coverage
 htmlcov/
 coverage.xml
 *.coveragerc
 
-# ── Type checkers & linters 
+# â”€â”€ Type checkers & linters 
 .mypy_cache/
 .ruff_cache/
 .pytype/
 
-# ── Jupyter notebooks 
+# â”€â”€ Jupyter notebooks 
 .ipynb_checkpoints/
 *.ipynb
 
-# ── OS files 
+# â”€â”€ OS files 
 .DS_Store
 Thumbs.db
 desktop.ini
 ehthumbs.db
 
-# ── Windows shortcuts / temp files 
+# â”€â”€ Windows shortcuts / temp files 
 *.lnk
 *.tmp
 *.bak
 *~
 
-# ── IDE / editor configs 
+# â”€â”€ IDE / editor configs 
 .vscode/
 .idea/
 *.sublime-project
 *.sublime-workspace
 
-# ── Logs & debug output ─
+# â”€â”€ Logs & debug output â”€
 logs/
 *.log
 
-# ── Temporary audio / translation output files 
+# â”€â”€ Temporary audio / translation output files 
 *.wav
 *.mp3
 *.ogg
 translated_*
 
-# ── Packaging 
+# â”€â”€ Packaging 
 *.spec
 
 
