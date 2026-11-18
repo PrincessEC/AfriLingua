@@ -80,3 +80,16 @@ translated_*
 # ── Packaging 
 *.spec
 
+
+# -- v2 additions -------------------------------------------------------------
+data/*.db
+data/*.db-*
+data/sessions/
+data/contributions/
+data/tm/
+data/jobs/
+data/languages.json
+web/node_modules/
+web/dist/
+.venv/
+uv.lock.bak
