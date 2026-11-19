@@ -82,7 +82,7 @@ def _enforce_domain_cap(
         other = total - len(items)
         if other > 0 and (len(items) / total) > max_domain_share:
             # Solve cap / (cap + other) = max_domain_share  =>  cap = other * s / (1 - s)
-            cap = max(1, int(round(other * max_domain_share / (1.0 - max_domain_share))))
+            cap = max(1, round(other * max_domain_share / (1.0 - max_domain_share)))
             if cap < len(items):
                 shuffled = list(items)
                 rng.shuffle(shuffled)
@@ -249,8 +249,8 @@ def build_training_splits(
 
     ordered_groups = sorted(groups.items(), key=lambda kv: _group_bucket(kv[0][0], kv[0][1]))
     n_groups = len(ordered_groups)
-    n_test = int(round(n_groups * test_ratio)) if n_groups >= 10 and test_ratio > 0 else 0
-    n_val = int(round(n_groups * val_ratio)) if n_groups >= 10 and val_ratio > 0 else 0
+    n_test = round(n_groups * test_ratio) if n_groups >= 10 and test_ratio > 0 else 0
+    n_val = round(n_groups * val_ratio) if n_groups >= 10 and val_ratio > 0 else 0
 
     for idx, (_gk, rows) in enumerate(ordered_groups):
         if idx < n_test:

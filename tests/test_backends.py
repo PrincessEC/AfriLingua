@@ -45,7 +45,9 @@ def test_explicit_backend_choice(monkeypatch, env, key, cls_name):
 
 
 def test_auto_falls_back_when_package_missing(monkeypatch):
-    monkeypatch.setattr(_common, "module_available", lambda name: name not in {"ctranslate2", "faster_whisper"})
+    monkeypatch.setattr(
+        _common, "module_available", lambda name: name not in {"ctranslate2", "faster_whisper"}
+    )
     import afrilingua.backends.factory as factory
 
     monkeypatch.setattr(factory, "module_available", _common.module_available)
@@ -148,7 +150,9 @@ def test_mms_rejects_pretraining_checkpoint():
 def test_mms_accepts_adapter_ctc_checkpoint():
     from afrilingua.backends.asr_mms import validate_mms_config
 
-    validate_mms_config(types.SimpleNamespace(architectures=["Wav2Vec2ForCTC"], adapter_attn_dim=16), "mms-1b-all")
+    validate_mms_config(
+        types.SimpleNamespace(architectures=["Wav2Vec2ForCTC"], adapter_attn_dim=16), "mms-1b-all"
+    )
 
 
 def test_mms_languages_and_quantize_default():

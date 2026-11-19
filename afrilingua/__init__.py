@@ -1,4 +1,4 @@
-﻿"""
+"""
 AfriLingua: fast, lightweight AI translation and speech for African languages.
 
 Quick use (models download on first call, then everything runs offline)::

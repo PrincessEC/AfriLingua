@@ -70,7 +70,9 @@ def test_tm_router_crud_search_and_import(fake_engine):
 def test_contributions_router_full_workflow(fake_engine):
     app = create_app(fake_engine, mount_mcp=False, serve_web=False)
     with TestClient(app) as c:
-        prompts = c.get("/api/v1/contributions/prompts", params={"lang": "yoruba", "kind": "translate", "n": 5})
+        prompts = c.get(
+            "/api/v1/contributions/prompts", params={"lang": "yoruba", "kind": "translate", "n": 5}
+        )
         assert prompts.status_code == 200 and len(prompts.json()["prompts"]) == 5
 
         sub = c.post(
@@ -93,7 +95,9 @@ def test_contributions_router_full_workflow(fake_engine):
 
         # Self-review is blocked; two independent reviewers approve and promote to TM
         assert (
-            c.post(f"/api/v1/contributions/{cid}/review", json={"vote": "approve", "reviewer": "Ada"}).status_code
+            c.post(
+                f"/api/v1/contributions/{cid}/review", json={"vote": "approve", "reviewer": "Ada"}
+            ).status_code
             == 400
         )
         q = c.get("/api/v1/contributions/review-queue", params={"reviewer": "Tunde"}).json()["items"]
@@ -144,9 +148,9 @@ def test_datasets_router_upload_and_delete_removes_tm_entries(fake_engine):
     app = create_app(fake_engine, mount_mcp=False, serve_web=False)
     with TestClient(app) as c:
         srt_en = (
-            "1\n00:00:01,000 --> 00:00:03,500\nWelcome back to the village.\n\n"
-            "2\n00:00:04,000 --> 00:00:06,500\nPlease sit down with us.\n"
-        ).encode()
+            b"1\n00:00:01,000 --> 00:00:03,500\nWelcome back to the village.\n\n"
+            b"2\n00:00:04,000 --> 00:00:06,500\nPlease sit down with us.\n"
+        )
         srt_yo = (
             "1\n00:00:01,100 --> 00:00:03,400\nẸ káàbọ̀ padà sí abúlé wa.\n\n"
             "2\n00:00:04,050 --> 00:00:06,450\nẸ jọ̀wọ́ ẹ jókòó pẹ̀lú wa.\n"

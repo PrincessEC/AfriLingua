@@ -27,9 +27,7 @@ def test_ebible_and_usfm_verse_alignment(tmp_path):
         encoding="utf-8",
     )
     ig.write_text(
-        "Na mbụ Chineke kere eluigwe na ụwa.\n"
-        "<range>\n"
-        "Chineke wee sị, Ka ìhè dị: ìhè wee dị.\n",
+        "Na mbụ Chineke kere eluigwe na ụwa.\n<range>\nChineke wee sị, Ka ìhè dị: ìhè wee dị.\n",
         encoding="utf-8",
     )
     rec = store.import_corpus(

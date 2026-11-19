@@ -172,9 +172,7 @@ def parse_usfm_verses(paths: Iterable[Path]) -> dict[str, str]:
     return verses
 
 
-def iter_usfm_pairs(
-    src_paths: Iterable[Path], tgt_paths: Iterable[Path]
-) -> Iterator[tuple[str, str, str]]:
+def iter_usfm_pairs(src_paths: Iterable[Path], tgt_paths: Iterable[Path]) -> Iterator[tuple[str, str, str]]:
     """Align two USFM collections by exact ``BOOK.CHAPTER.VERSE`` reference."""
     src_map = parse_usfm_verses(src_paths)
     tgt_map = parse_usfm_verses(tgt_paths)
@@ -362,7 +360,6 @@ def iter_unaligned_pairs(
         (2, 1, 2.3),
         (1, 2, 2.3),
     )
-    inf = 1e18
     dp: dict[tuple[int, int], tuple[float, int, int]] = {(0, 0): (0.0, 0, 0)}
 
     for i in range(n + 1):
@@ -621,12 +618,16 @@ class CorpusStore:
         """Parse, align, filter and store a parallel corpus (and optionally add it to the TM)."""
         fmt_norm = fmt.strip().lower()
         if fmt_norm not in CORPUS_FORMATS:
-            raise InvalidInputError(f"Unsupported corpus format {fmt!r}. Choose from: {sorted(CORPUS_FORMATS)}")
+            raise InvalidInputError(
+                f"Unsupported corpus format {fmt!r}. Choose from: {sorted(CORPUS_FORMATS)}"
+            )
         source_name = normalize_text(source_name)
         if not source_name:
             raise InvalidInputError("source_name is required for provenance tracking.")
         if license not in CORPUS_LICENSES:
-            raise InvalidInputError(f"Unsupported license {license!r}. Choose from: {sorted(CORPUS_LICENSES)}")
+            raise InvalidInputError(
+                f"Unsupported license {license!r}. Choose from: {sorted(CORPUS_LICENSES)}"
+            )
         domain_norm = domain.strip().lower() or "general"
         if domain_norm not in CORPUS_DOMAINS:
             raise InvalidInputError(f"Unsupported domain {domain!r}. Choose from: {sorted(CORPUS_DOMAINS)}")
@@ -664,7 +665,9 @@ class CorpusStore:
         tm_count = 0
         if add_to_tm and self.tm is not None:
             tm_origin = f"corpus:{corpus_id}"
-            tm_pairs = [(s_txt, t_txt) for s_txt, t_txt, _ in accepted if len(s_txt) <= 2000 and len(t_txt) <= 2000]
+            tm_pairs = [
+                (s_txt, t_txt) for s_txt, t_txt, _ in accepted if len(s_txt) <= 2000 and len(t_txt) <= 2000
+            ]
             if hasattr(self.tm, "add_many"):
                 tm_count = int(self.tm.add_many(tm_pairs, src, tgt, origin=tm_origin, approved=True))
                 if hasattr(self.tm, "flush"):
@@ -708,7 +711,9 @@ class CorpusStore:
             raise InvalidInputError("ebible format expects 2 files (src, tgt) or 3 files (src, tgt, vref).")
         if fmt == "usfm":
             if len(files) < 2 or len(files) % 2 != 0:
-                raise InvalidInputError("usfm format expects an even number of files (src file(s), then tgt file(s)).")
+                raise InvalidInputError(
+                    "usfm format expects an even number of files (src file(s), then tgt file(s))."
+                )
             mid = len(files) // 2
             return iter_usfm_pairs(files[:mid], files[mid:])
         if fmt in {"srt", "vtt"}:
@@ -741,7 +746,9 @@ class CorpusStore:
             return (
                 (s, t, f"{fmt}:{idx}")
                 for idx, (s, t) in enumerate(
-                    iter_tabular_tm_pairs(files[0], src, tgt, fmt=fmt, resolve_lang=resolve, lang_aliases=aliases),
+                    iter_tabular_tm_pairs(
+                        files[0], src, tgt, fmt=fmt, resolve_lang=resolve, lang_aliases=aliases
+                    ),
                     start=1,
                 )
             )

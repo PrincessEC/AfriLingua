@@ -371,18 +371,38 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--langs", default=None, help="Comma-separated languages.")
     p.set_defaults(func=cmd_bench)
 
-    p = sub.add_parser("corpora", help="Import, list or delete bulk parallel corpora (Bibles, subtitles, docs).")
+    p = sub.add_parser(
+        "corpora", help="Import, list or delete bulk parallel corpora (Bibles, subtitles, docs)."
+    )
     csub = p.add_subparsers(dest="corpora_cmd", metavar="<import|list|delete>")
     csub.required = True
     cimp = csub.add_parser("import", help="Import parallel files into the corpus store (and optionally TM).")
-    cimp.add_argument("files", nargs="+", help="Input file(s): 1 for tsv/csv/jsonl/tmx, 2+ for ebible/usfm/srt/vtt/lines/unaligned.")
-    cimp.add_argument("--format", required=True, help="ebible, usfm, srt, vtt, lines, tsv, csv, jsonl, tmx, unaligned.")
+    cimp.add_argument(
+        "files",
+        nargs="+",
+        help="Input file(s): 1 for tsv/csv/jsonl/tmx, 2+ for ebible/usfm/srt/vtt/lines/unaligned.",
+    )
+    cimp.add_argument(
+        "--format", required=True, help="ebible, usfm, srt, vtt, lines, tsv, csv, jsonl, tmx, unaligned."
+    )
     cimp.add_argument("--from", dest="src", required=True, help="Source language.")
     cimp.add_argument("--to", required=True, help="Target language.")
-    cimp.add_argument("--source-name", required=True, help="Dataset provenance name (e.g. 'Yoruba Open Bible 1900').")
-    cimp.add_argument("--license", required=True, help="public-domain, CC0-1.0, CC-BY-4.0, CC-BY-SA-4.0, research-only, proprietary-permission.")
-    cimp.add_argument("--domain", default="general", help="general, religious, media, medical, legal, education, government.")
-    cimp.add_argument("--add-to-tm", action="store_true", help="Also ingest accepted pairs into Translation Memory.")
+    cimp.add_argument(
+        "--source-name", required=True, help="Dataset provenance name (e.g. 'Yoruba Open Bible 1900')."
+    )
+    cimp.add_argument(
+        "--license",
+        required=True,
+        help="public-domain, CC0-1.0, CC-BY-4.0, CC-BY-SA-4.0, research-only, proprietary-permission.",
+    )
+    cimp.add_argument(
+        "--domain",
+        default="general",
+        help="general, religious, media, medical, legal, education, government.",
+    )
+    cimp.add_argument(
+        "--add-to-tm", action="store_true", help="Also ingest accepted pairs into Translation Memory."
+    )
     csub.add_parser("list", help="List imported parallel corpora.")
     cdel = csub.add_parser("delete", help="Delete an imported corpus (and its TM entries if ingested).")
     cdel.add_argument("id", help="Corpus ID.")
@@ -394,10 +414,16 @@ def build_parser() -> argparse.ArgumentParser:
     tsplits = tsub.add_parser("splits", help="Build deduplicated, domain-capped train/val/test JSONL splits.")
     tsplits.add_argument("--out-dir", default=None, help="Output directory (default: data/processed).")
     tsplits.add_argument("--lang", default=None, help="Restrict to pairs involving this language.")
-    tsplits.add_argument("--commercial-safe", action="store_true", help="Exclude copyleft and research-only corpora.")
+    tsplits.add_argument(
+        "--commercial-safe", action="store_true", help="Exclude copyleft and research-only corpora."
+    )
     tsplits.add_argument("--include-tm", action="store_true", help="Include approved ad-hoc TM entries.")
-    tsplits.add_argument("--max-domain-share", type=float, default=0.40, help="Cap per-domain share (default: 0.40).")
-    tmt = tsub.add_parser("mt", help="LoRA fine-tune NLLB-200 on parallel splits (+ optional CTranslate2 int8 export).")
+    tsplits.add_argument(
+        "--max-domain-share", type=float, default=0.40, help="Cap per-domain share (default: 0.40)."
+    )
+    tmt = tsub.add_parser(
+        "mt", help="LoRA fine-tune NLLB-200 on parallel splits (+ optional CTranslate2 int8 export)."
+    )
     tmt.add_argument("--base-model", default="facebook/nllb-200-distilled-600M")
     tmt.add_argument("--data-dir", default="data/processed")
     tmt.add_argument("--output-dir", default="data/finetuned/nllb-afrilingua")
@@ -405,12 +431,16 @@ def build_parser() -> argparse.ArgumentParser:
     tmt.add_argument("--max-steps", type=int, default=-1)
     tmt.add_argument("--lora-r", type=int, default=8)
     tmt.add_argument("--no-ct2", action="store_true", help="Skip CTranslate2 quantized export.")
-    tmt.add_argument("--dry-run", action="store_true", help="Validate splits and runtime config without loading weights.")
+    tmt.add_argument(
+        "--dry-run", action="store_true", help="Validate splits and runtime config without loading weights."
+    )
     tasr = tsub.add_parser("asr", help="Fine-tune an MMS CTC language adapter on approved community audio.")
     tasr.add_argument("--lang", required=True, help="Target language (e.g. yoruba, igbo, hausa).")
     tasr.add_argument("--epochs", type=int, default=5)
     tasr.add_argument("--max-steps", type=int, default=-1)
-    tasr.add_argument("--dry-run", action="store_true", help="Count approved recordings without loading weights.")
+    tasr.add_argument(
+        "--dry-run", action="store_true", help="Count approved recordings without loading weights."
+    )
     p.set_defaults(func=cmd_train)
     return parser
 

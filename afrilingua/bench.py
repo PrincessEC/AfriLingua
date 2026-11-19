@@ -37,7 +37,7 @@ def _percentiles(samples_ms: list[float]) -> dict[str, float]:
         return {"p50_ms": 0.0, "p95_ms": 0.0, "mean_ms": 0.0}
     ordered = sorted(samples_ms)
     p50 = ordered[len(ordered) // 2]
-    p95 = ordered[min(len(ordered) - 1, int(round(0.95 * (len(ordered) - 1))))]
+    p95 = ordered[min(len(ordered) - 1, round(0.95 * (len(ordered) - 1)))]
     return {
         "p50_ms": round(p50, 3),
         "p95_ms": round(p95, 3),
@@ -49,30 +49,32 @@ def bench_translation_memory(n_entries: int = 5_000, n_queries: int = 100) -> di
     """Measure exact and fuzzy lookup latency on an isolated ``n_entries`` TM."""
     from afrilingua.tm import open_translation_memory
 
-    with tempfile.TemporaryDirectory(prefix="afrilingua-tm-bench-") as tmp:
-        with open_translation_memory(Path(tmp)) as tm:
-            pairs = [
-                (f"Conference sentence number {i} about community health and trade.", f"Ìtumọ̀ {i}")
-                for i in range(n_entries)
-            ]
-            t0 = time.perf_counter()
-            tm.add_many(pairs, "english", "yoruba", origin="bench", approved=True)
-            tm.flush()
-            ingest_ms = (time.perf_counter() - t0) * 1000
+    with (
+        tempfile.TemporaryDirectory(prefix="afrilingua-tm-bench-") as tmp,
+        open_translation_memory(Path(tmp)) as tm,
+    ):
+        pairs = [
+            (f"Conference sentence number {i} about community health and trade.", f"Ìtumọ̀ {i}")
+            for i in range(n_entries)
+        ]
+        t0 = time.perf_counter()
+        tm.add_many(pairs, "english", "yoruba", origin="bench", approved=True)
+        tm.flush()
+        ingest_ms = (time.perf_counter() - t0) * 1000
 
-            exact_times: list[float] = []
-            fuzzy_times: list[float] = []
-            for q_idx in range(n_queries):
-                target_idx = (q_idx * 37) % n_entries
-                exact_q = pairs[target_idx][0]
-                t_e = time.perf_counter()
-                tm.lookup(exact_q, "english", "yoruba", k=3)
-                exact_times.append((time.perf_counter() - t_e) * 1000)
+        exact_times: list[float] = []
+        fuzzy_times: list[float] = []
+        for q_idx in range(n_queries):
+            target_idx = (q_idx * 37) % n_entries
+            exact_q = pairs[target_idx][0]
+            t_e = time.perf_counter()
+            tm.lookup(exact_q, "english", "yoruba", k=3)
+            exact_times.append((time.perf_counter() - t_e) * 1000)
 
-                fuzzy_q = f"Conference statement number {target_idx} regarding community health"
-                t_f = time.perf_counter()
-                tm.lookup(fuzzy_q, "english", "yoruba", k=3)
-                fuzzy_times.append((time.perf_counter() - t_f) * 1000)
+            fuzzy_q = f"Conference statement number {target_idx} regarding community health"
+            t_f = time.perf_counter()
+            tm.lookup(fuzzy_q, "english", "yoruba", k=3)
+            fuzzy_times.append((time.perf_counter() - t_f) * 1000)
 
     return {
         "entries": n_entries,
@@ -90,7 +92,7 @@ def run_benchmark(
     tm_entries: int = 5_000,
 ) -> dict[str, Any]:
     """Run micro-benchmarks (TM, LID) plus end-to-end model benchmarks."""
-    targets = [engine.registry.normalize(l) for l in (langs or ["yoruba", "igbo", "hausa"])]
+    targets = [engine.registry.normalize(lang) for lang in (langs or ["yoruba", "igbo", "hausa"])]
     rss_before = _rss_mb()
 
     lid_times: list[float] = []

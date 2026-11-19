@@ -126,9 +126,7 @@ def run_mt_lora(cfg: MTLoRAConfig) -> dict[str, Any]:
             Seq2SeqTrainingArguments,
         )
     except ImportError as exc:
-        raise RuntimeError(
-            "Training dependencies missing. Install with: pip install -e '.[train]'"
-        ) from exc
+        raise RuntimeError("Training dependencies missing. Install with: pip install -e '.[train]'") from exc
 
     tokenizer = AutoTokenizer.from_pretrained(cfg.base_model, cache_dir=str(settings.hf_cache))
     model = AutoModelForSeq2SeqLM.from_pretrained(cfg.base_model, cache_dir=str(settings.hf_cache))

@@ -123,9 +123,7 @@ def run_asr_adapter_training(cfg: ASRAdapterConfig, *, contrib: Any | None = Non
     out_dir.mkdir(parents=True, exist_ok=True)
     adapter_file = out_dir / f"adapter.{spec.mms_asr_code}.safetensors"
     adapter_weights = {
-        k: v.detach().cpu()
-        for k, v in model.state_dict().items()
-        if "adapter" in k or "lm_head" in k
+        k: v.detach().cpu() for k, v in model.state_dict().items() if "adapter" in k or "lm_head" in k
     }
     save_file(adapter_weights, str(adapter_file))
     return {

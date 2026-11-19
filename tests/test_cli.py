@@ -78,6 +78,7 @@ def test_serve_lan_warns_and_binds_all_interfaces(monkeypatch, capsys):
         monkeypatch.delenv(key, raising=False)
     calls = {}
     import os
+
     import uvicorn
 
     monkeypatch.setattr(uvicorn, "run", lambda *a, **kw: calls.update(args=a, kwargs=kw))

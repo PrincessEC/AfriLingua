@@ -18,7 +18,9 @@ def _char_ngrams(text: str, n: int) -> Counter[str]:
     return Counter(clean[i : i + n] for i in range(len(clean) - n + 1))
 
 
-def _pure_chrf(predictions: Sequence[str], references: Sequence[str], max_order: int = 6, beta: float = 2.0) -> float:
+def _pure_chrf(
+    predictions: Sequence[str], references: Sequence[str], max_order: int = 6, beta: float = 2.0
+) -> float:
     """Zero-dependency chrF implementation (0..100) used when ``sacrebleu`` is absent."""
     if not predictions:
         return 0.0
@@ -138,7 +140,7 @@ def render_model_card(
 base_model: {base_model}
 license: {base_model_license.lower()}
 language:
-{chr(10).join(f"- {l}" for l in langs)}
+{chr(10).join(f"- {lang}" for lang in langs)}
 pipeline_tag: {task}
 tags:
 - afrilingua
