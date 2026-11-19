@@ -12,9 +12,23 @@ from dotenv import load_dotenv
 _ROOT = Path(__file__).resolve().parent.parent
 load_dotenv(_ROOT / ".env")
 
+# Helps PyTorch recover from fragmented VRAM on small CUDA devices.
+os.environ.setdefault("PYTORCH_CUDA_ALLOC_CONF", "expandable_segments:True")
+
 
 def _get(key: str, default: str = "") -> str:
     return os.environ.get(key, default)
+
+
+def _empty_gpu_info(reason: str = "", cuda_built: bool = False) -> dict:
+    return {
+        "available": False,
+        "name": "None",
+        "vram_gb": 0.0,
+        "compute": "",
+        "cuda_built": cuda_built,
+        "reason": reason,
+    }
 
 
 # ── Hardware / GPU detection ─────────────────────────────────────────────────
@@ -29,17 +43,28 @@ def _detect_gpu_info() -> dict:
     """
     try:
         import torch as _t
+        cuda_built = bool(_t.backends.cuda.is_built())
         if not _t.cuda.is_available():
-            return {"available": False, "name": "None", "vram_gb": 0.0, "compute": ""}
+            reason = (
+                "CUDA-enabled PyTorch is installed, but no CUDA GPU is "
+                "available to this process."
+                if cuda_built
+                else "The installed PyTorch build is CPU-only."
+            )
+            return _empty_gpu_info(reason, cuda_built)
         p = _t.cuda.get_device_properties(0)
         return {
             "available":  True,
             "name":       p.name,
             "vram_gb":    round(p.total_memory / 1_073_741_824, 1),  # bytes → GiB
             "compute":    f"{p.major}.{p.minor}",
+            "cuda_built": True,
+            "reason":     "",
         }
-    except Exception:
-        return {"available": False, "name": "None", "vram_gb": 0.0, "compute": ""}
+    except ImportError:
+        return _empty_gpu_info("PyTorch is not installed.", False)
+    except Exception as exc:
+        return _empty_gpu_info(str(exc), False)
 
 
 GPU_INFO: dict = _detect_gpu_info()
@@ -77,8 +102,23 @@ else:
 _DTYPE_PREF: str = _get("TORCH_DTYPE", "auto").lower()
 if _DTYPE_PREF == "auto":
     TORCH_DTYPE: str = "float16" if DEVICE == "cuda" else "float32"
-else:
+elif _DTYPE_PREF in {"float32", "float16"}:
     TORCH_DTYPE = _DTYPE_PREF
+else:
+    warnings.warn(
+        f"Invalid TORCH_DTYPE={_DTYPE_PREF!r}; using auto.",
+        RuntimeWarning,
+        stacklevel=2,
+    )
+    TORCH_DTYPE = "float16" if DEVICE == "cuda" else "float32"
+
+if DEVICE == "cpu" and TORCH_DTYPE == "float16":
+    warnings.warn(
+        "TORCH_DTYPE=float16 requested on CPU. Falling back to float32.",
+        RuntimeWarning,
+        stacklevel=2,
+    )
+    TORCH_DTYPE = "float32"
 
 # ── Hardware profile ──────────────────────────────────────────────────────────
 # Automatically selected based on detected VRAM.  Drives default model sizes.
@@ -122,6 +162,14 @@ _profile_defaults = _PROFILE_DEFAULTS[HARDWARE_PROFILE]
 # ── Deployment mode ───────────────────────────────────────────────────────────
 # Options: web | desktop
 DEPLOYMENT_MODE: str = _get("DEPLOYMENT_MODE", "web").lower()
+PRELOAD_MODE: str = _get("PRELOAD_MODE", "adaptive").lower()
+if PRELOAD_MODE not in {"adaptive", "all", "minimal"}:
+    warnings.warn(
+        f"Invalid PRELOAD_MODE={PRELOAD_MODE!r}; using adaptive.",
+        RuntimeWarning,
+        stacklevel=2,
+    )
+    PRELOAD_MODE = "adaptive"
 
 # ── Model IDs ─────────────────────────────────────────────────────────────────
 # Default values are chosen automatically based on HARDWARE_PROFILE.

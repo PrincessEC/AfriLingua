@@ -1,0 +1,17 @@
+# Yoruba seed prompts for recording (common greetings/phrases, standard orthography with tone marks).
+# Format: domain<TAB>sentence
+seed	Ẹ káàárọ̀.
+seed	Ẹ káàsán.
+seed	Ẹ káalẹ́.
+seed	Ó dàárọ̀.
+seed	Báwo ni?
+seed	Mo wà dáadáa.
+seed	Ẹ ṣé.
+seed	Ẹ ṣé púpọ̀.
+seed	Ẹ kú iṣẹ́.
+seed	Ẹ kú àbọ̀.
+seed	Ẹ jọ̀ọ́.
+seed	Ó dàbọ̀.
+seed	Kí ni orúkọ rẹ?
+seed	Bẹ́ẹ̀ ni.
+seed	Rárá.

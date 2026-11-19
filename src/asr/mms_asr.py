@@ -1,6 +1,6 @@
 """
 src/asr/mms_asr.py
-Meta MMS ASR for Igbo, Yoruba, and Hausa (CPU).
+Meta MMS ASR for Igbo, Yoruba, and Hausa.
 """
 from __future__ import annotations
 
@@ -9,24 +9,32 @@ from typing import Optional
 
 import numpy as np
 import torch
-from transformers import AutoConfig, AutoProcessor, Wav2Vec2ForCTC, Wav2Vec2Processor
+from transformers import (
+    AutoConfig,
+    AutoProcessor,
+    Wav2Vec2ForCTC,
+    Wav2Vec2Processor,
+)
 
-from src.config import HF_CACHE, MODEL_MMS_ASR, SAMPLE_RATE
-from src.hf_compat import fp32_dtype_kwargs
+from src.config import (
+    DEVICE,
+    HF_CACHE,
+    MODEL_MMS_ASR,
+    SAMPLE_RATE,
+    TORCH_DTYPE,
+)
+from src.hf_compat import dtype_name_kwargs
+from src.languages import ASR_LANG_CODES, normalize_language
 
 logger = logging.getLogger(__name__)
 
-# Lingua / internal name -> MMS language tag.
-MMS_LANG_MAP: dict[str, str] = {
-    "igbo": "ibo",
-    "yoruba": "yor",
-    "hausa": "hau",
-}
+# Internal language name -> MMS language tag.
+MMS_LANG_MAP: dict[str, str] = dict(ASR_LANG_CODES)
 
 
 class MMSASR:
     """
-    Meta MMS speech -> text for African languages (CPU).
+    Meta MMS speech -> text for African languages.
 
     MMS ASR requires one of the fine-tuned CTC checkpoints such as
     facebook/mms-1b-all. The pretrained facebook/mms-300m checkpoint does not
@@ -41,6 +49,7 @@ class MMSASR:
         self._processor: Optional[Wav2Vec2Processor] = None
         self._model: Optional[Wav2Vec2ForCTC] = None
         self._current_lang: Optional[str] = None
+        self._device: str = DEVICE
 
     def _validate_model_config(self) -> None:
         """Fail early when MODEL_MMS_ASR points at a non-ASR MMS checkpoint."""
@@ -64,8 +73,14 @@ class MMSASR:
         if self._model is not None:
             return
 
-        default_lang = MMS_LANG_MAP["igbo"]
-        logger.info("Loading MMS ASR processor + model on CPU from %s ...", MODEL_MMS_ASR)
+        if not MMS_LANG_MAP:
+            raise ValueError("No MMS ASR languages are configured.")
+        default_lang = next(iter(MMS_LANG_MAP.values()))
+        logger.info(
+            "Loading MMS ASR processor + model on %s from %s ...",
+            DEVICE,
+            MODEL_MMS_ASR,
+        )
         self._validate_model_config()
         self._processor = AutoProcessor.from_pretrained(
             MODEL_MMS_ASR,
@@ -76,8 +91,19 @@ class MMSASR:
             MODEL_MMS_ASR,
             ignore_mismatched_sizes=True,
             cache_dir=str(HF_CACHE),
-            **fp32_dtype_kwargs(),
+            **dtype_name_kwargs(TORCH_DTYPE),
         )
+        try:
+            self._model.to(DEVICE)
+            self._device = DEVICE
+        except RuntimeError as exc:
+            if DEVICE == "cuda" and "out of memory" in str(exc).lower():
+                logger.warning("CUDA ran out of memory for MMS ASR; falling back to CPU.")
+                torch.cuda.empty_cache()
+                self._model.to(device="cpu", dtype=torch.float32)
+                self._device = "cpu"
+            else:
+                raise
         self._model.eval()
         self._switch_lang(default_lang)
         logger.info("MMS ASR ready.")
@@ -99,6 +125,7 @@ class MMSASR:
         tokenizer.set_target_lang(mms_lang)
         try:
             self._model.load_adapter(mms_lang, cache_dir=str(HF_CACHE))
+            self._model.to(self._device)
         except ValueError as exc:
             raise ValueError(
                 f"Could not load MMS ASR adapter {mms_lang!r} from "
@@ -129,7 +156,15 @@ class MMSASR:
         if audio is None or len(audio) == 0:
             return ""
 
-        mms_lang = MMS_LANG_MAP.get(lang.lower())
+        try:
+            lang_name = normalize_language(lang)
+        except ValueError as exc:
+            raise ValueError(
+                f"Unsupported language for MMS ASR: {lang!r}. "
+                f"Supported: {list(MMS_LANG_MAP.keys())}"
+            ) from exc
+
+        mms_lang = MMS_LANG_MAP.get(lang_name)
         if mms_lang is None:
             raise ValueError(
                 f"Unsupported language for MMS ASR: {lang!r}. "
@@ -163,7 +198,7 @@ class MMSASR:
         with torch.no_grad():
             logits = self._model(**inputs).logits
 
-        predicted_ids = torch.argmax(logits, dim=-1)
+        predicted_ids = torch.argmax(logits, dim=-1).detach().cpu()
         transcription = self._processor.decode(predicted_ids[0])
         return transcription.strip()
 

@@ -32,7 +32,7 @@ from typing import Optional
 # ── Qt availability check ─────────────────────────────────────────────────────
 try:
     from PyQt6.QtCore import (
-        Qt, QThread, QObject, pyqtSignal, pyqtSlot,
+        Qt, QThread, QObject, QTimer, pyqtSignal, pyqtSlot,
     )
     from PyQt6.QtGui import (
         QAction, QCloseEvent, QColor, QFont, QIcon, QPainter, QPixmap, QTextCursor,
@@ -65,10 +65,19 @@ from src.document.translator import DocumentTranslator
 from src.model_loader import load_all, TOTAL_STEPS
 from src.pipeline.realtime_pipeline import RealtimePipeline, TranslationResult
 from src.translation.engine import TranslationEngine
+from src.languages import TEXT_LANGUAGE_CHOICES
 from src.asr.whisper_asr import WhisperASR
 from src.asr.mms_asr import MMSASR
 from src.tts.english_tts import EnglishTTS
 from src.tts.mms_tts import MMSTTS
+from src.runtime.resources import (
+    clear_accelerator_cache,
+    get_runtime_snapshot,
+    input_device_choices,
+    output_device_choices,
+    parse_input_device,
+    parse_output_device,
+)
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s  %(message)s")
 logger = logging.getLogger(__name__)
@@ -78,11 +87,16 @@ _engine    = TranslationEngine()
 _whisper   = WhisperASR()
 _mms_asr   = MMSASR()
 _detector  = LanguageDetector()
-_doc_trans = DocumentTranslator()
+_doc_trans = DocumentTranslator(engine=_engine, detector=_detector)
 _mms_tts   = MMSTTS()
 _eng_tts   = EnglishTTS()
 
-_LANGUAGES = ["english", "igbo", "yoruba", "hausa"]
+_LANGUAGES = TEXT_LANGUAGE_CHOICES
+
+
+def _gpu_unavailable_text(prefix: str = "GPU") -> str:
+    label = "CUDA unavailable" if GPU_INFO.get("cuda_built") else "Not available"
+    return f"{prefix}: {label} - running on CPU"
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -359,6 +373,150 @@ QStatusBar {
     border-top: 1px solid #d9dfd2;
 }
 QSplitter::handle { background: #d9dfd2; width: 3px; }
+
+/* Modern light app shell overrides */
+QMainWindow, QWidget {
+    background-color: #f6f7f2;
+    color: #17201b;
+    font-family: 'Segoe UI', 'Inter', sans-serif;
+    font-size: 13px;
+}
+QTabWidget::pane {
+    border: 1px solid #d9dfd2;
+    border-radius: 8px;
+    background: #ffffff;
+}
+QTabBar::tab {
+    background: #eef1ea;
+    color: #566258;
+    padding: 9px 22px;
+    border-radius: 8px 8px 0 0;
+    margin-right: 3px;
+}
+QTabBar::tab:selected {
+    background: #ffffff;
+    color: #17201b;
+    border: 1px solid #d9dfd2;
+    border-bottom: 1px solid #ffffff;
+    font-weight: 700;
+}
+QPushButton {
+    background-color: #1d6f5f;
+    color: #ffffff;
+    border: 1px solid #1d6f5f;
+    border-radius: 8px;
+    padding: 8px 18px;
+    font-weight: 700;
+}
+QPushButton:hover { background-color: #176052; }
+QPushButton:pressed { background-color: #124d42; }
+QPushButton:disabled {
+    background-color: #e5e9e0;
+    border-color: #d5dccf;
+    color: #8a948b;
+}
+QPushButton#danger {
+    background-color: #b84f3c;
+    border-color: #b84f3c;
+}
+QPushButton#danger:hover { background-color: #9f402f; }
+QComboBox {
+    background-color: #ffffff;
+    color: #17201b;
+    border: 1px solid #c9d1c7;
+    border-radius: 8px;
+    padding: 7px 12px;
+    min-width: 132px;
+}
+QComboBox QAbstractItemView {
+    background-color: #ffffff;
+    color: #17201b;
+    selection-background-color: #dceee7;
+    selection-color: #17201b;
+}
+QTextEdit {
+    background-color: #ffffff;
+    color: #17201b;
+    border: 1px solid #cbd5c8;
+    border-radius: 8px;
+    padding: 10px;
+    font-family: 'Consolas', 'Menlo', monospace;
+    font-size: 13px;
+    line-height: 1.5;
+}
+QLabel#section {
+    color: #26332b;
+    font-weight: 750;
+    font-size: 12px;
+    letter-spacing: 0;
+    border-left: 3px solid #d95f43;
+    padding-left: 9px;
+}
+QLabel#status_running { color: #1d6f5f; font-weight: 800; }
+QLabel#status_stopped { color: #9a4b22; font-weight: 800; }
+QProgressBar {
+    border: 1px solid #cbd5c8;
+    border-radius: 6px;
+    background-color: #eef1ea;
+    text-align: center;
+    color: #17201b;
+}
+QProgressBar::chunk { background-color: #1d6f5f; border-radius: 6px; }
+QSlider::groove:horizontal {
+    height: 6px;
+    background: #dfe5db;
+    border-radius: 3px;
+}
+QSlider::handle:horizontal {
+    background: #1d6f5f;
+    width: 16px;
+    height: 16px;
+    margin: -5px 0;
+    border-radius: 8px;
+}
+QScrollBar:vertical {
+    background: #eef1ea;
+    width: 9px;
+    border-radius: 4px;
+}
+QScrollBar::handle:vertical {
+    background: #c9d1c7;
+    border-radius: 4px;
+    min-height: 30px;
+}
+QGroupBox {
+    background: #ffffff;
+    border: 1px solid #d9dfd2;
+    border-radius: 8px;
+    margin-top: 14px;
+    padding: 12px;
+    font-weight: 700;
+    color: #26332b;
+}
+QGroupBox::title {
+    subcontrol-origin: margin;
+    left: 12px;
+    padding: 0 6px;
+    background: #ffffff;
+}
+QCheckBox { spacing: 8px; color: #26332b; }
+QCheckBox::indicator {
+    width: 16px;
+    height: 16px;
+    border: 2px solid #aeb9ad;
+    border-radius: 4px;
+    background: #ffffff;
+}
+QCheckBox::indicator:checked {
+    background: #1d6f5f;
+    border-color: #1d6f5f;
+}
+QStatusBar {
+    background: #ffffff;
+    color: #5e6a61;
+    border-top: 1px solid #d9dfd2;
+}
+QSplitter::handle { background: #d9dfd2; width: 3px; }
 """
 
 
@@ -371,6 +529,7 @@ def _make_tray_icon() -> QIcon:
     pixmap.fill(Qt.GlobalColor.transparent)
     painter = QPainter(pixmap)
     painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+    painter.setBrush(QColor("#1d6f5f"))
     painter.setBrush(QColor("#1d6f5f"))
     painter.setPen(Qt.PenStyle.NoPen)
     painter.drawEllipse(2, 2, 60, 60)
@@ -436,11 +595,14 @@ class _LoadingDialog(QDialog):
         # Title
         title = QLabel("AfriLingua")
         title.setStyleSheet("font-size:20px; font-weight:bold; color:#17201b;")
+        title = QLabel("AfriLingua")
+        title.setStyleSheet("font-size:20px; font-weight:bold; color:#17201b;")
         title.setAlignment(Qt.AlignmentFlag.AlignCenter)
         root.addWidget(title)
 
         # Sub-title
         sub = QLabel("Loading AI models — please wait")
+        sub.setStyleSheet("color:#5e6a61; font-size:12px;")
         sub.setStyleSheet("color:#5e6a61; font-size:12px;")
         sub.setAlignment(Qt.AlignmentFlag.AlignCenter)
         root.addWidget(sub)
@@ -456,12 +618,14 @@ class _LoadingDialog(QDialog):
         # Step label
         self._label = QLabel("Initialising …")
         self._label.setStyleSheet("color:#5e6a61; font-size:12px;")
+        self._label.setStyleSheet("color:#5e6a61; font-size:12px;")
         self._label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self._label.setWordWrap(True)
         root.addWidget(self._label)
 
         # ── Download sub-progress (hidden until a file starts downloading) ──────
         self._dl_info = QLabel("")
+        self._dl_info.setStyleSheet("color:#1d6f5f; font-size:11px;")
         self._dl_info.setStyleSheet("color:#1d6f5f; font-size:11px;")
         self._dl_info.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self._dl_info.setWordWrap(True)
@@ -476,6 +640,8 @@ class _LoadingDialog(QDialog):
         self._dl_bar.setStyleSheet(
             "QProgressBar { border:none; background:#dfe5db; border-radius:3px; }"
             "QProgressBar::chunk { background:#1d6f5f; border-radius:3px; }"
+            "QProgressBar { border:none; background:#dfe5db; border-radius:3px; }"
+            "QProgressBar::chunk { background:#1d6f5f; border-radius:3px; }"
         )
         self._dl_bar.setVisible(False)
         root.addWidget(self._dl_bar)
@@ -483,8 +649,10 @@ class _LoadingDialog(QDialog):
         # Note
         note = QLabel(
             "First-time setup downloads ~7-8 GB of model weights. "
+            "First-time setup downloads ~7-8 GB of model weights. "
             "This only happens once — subsequent starts are fast."
         )
+        note.setStyleSheet("color:#6b746c; font-size:11px;")
         note.setStyleSheet("color:#6b746c; font-size:11px;")
         note.setAlignment(Qt.AlignmentFlag.AlignCenter)
         note.setWordWrap(True)
@@ -510,6 +678,7 @@ class _LoadingDialog(QDialog):
         name     = filename.split("/")[-1] or filename or "file"
         self._dl_bar.setValue(pct)
         self._dl_info.setText(
+            f"{name}  ·  {done_mb:.1f}/{total_mb:.1f} MB  ·  {speed_mb:.1f} MB/s"
             f"{name}  ·  {done_mb:.1f}/{total_mb:.1f} MB  ·  {speed_mb:.1f} MB/s"
         )
         self._dl_bar.setVisible(True)
@@ -598,7 +767,9 @@ class LiveTab(QWidget):
         root.setContentsMargins(14, 14, 14, 14)
 
         desc = QLabel("Live speech translation with local models.")
+        desc = QLabel("Live speech translation with local models.")
         desc.setWordWrap(True)
+        desc.setStyleSheet("color: #5e6a61; font-size: 12px;")
         desc.setStyleSheet("color: #5e6a61; font-size: 12px;")
         root.addWidget(desc)
 
@@ -611,6 +782,8 @@ class LiveTab(QWidget):
         lang_row.addSpacing(16)
         arrow = QLabel("to")
         arrow.setStyleSheet("font-size: 12px; color: #5e6a61; font-weight: bold;")
+        arrow = QLabel("to")
+        arrow.setStyleSheet("font-size: 12px; color: #5e6a61; font-weight: bold;")
         lang_row.addWidget(arrow)
         lang_row.addSpacing(16)
         lang_row.addWidget(QLabel("Interpret Into"))
@@ -618,20 +791,33 @@ class LiveTab(QWidget):
         self._tgt_combo.addItems([l.capitalize() for l in _LANGUAGES])
         self._tgt_combo.setCurrentText("Igbo")
         lang_row.addWidget(self._tgt_combo)
+        lang_row.addSpacing(16)
+        lang_row.addWidget(QLabel("Microphone"))
+        self._mic_combo = QComboBox()
+        self._mic_combo.addItems(input_device_choices())
+        lang_row.addWidget(self._mic_combo)
+        lang_row.addSpacing(16)
+        lang_row.addWidget(QLabel("Output"))
+        self._output_combo = QComboBox()
+        self._output_combo.addItems(output_device_choices())
+        lang_row.addWidget(self._output_combo)
         lang_row.addStretch()
         root.addLayout(lang_row)
 
         # Controls
         ctrl_row = QHBoxLayout()
         self._status_label = QLabel("Stopped")
+        self._status_label = QLabel("Stopped")
         self._status_label.setObjectName("status_stopped")
         ctrl_row.addWidget(self._status_label)
         ctrl_row.addStretch()
 
         self._start_btn = QPushButton("Start")
+        self._start_btn = QPushButton("Start")
         self._start_btn.clicked.connect(self.start_interpretation)
         ctrl_row.addWidget(self._start_btn)
 
+        self._stop_btn = QPushButton("Stop")
         self._stop_btn = QPushButton("Stop")
         self._stop_btn.setObjectName("danger")
         self._stop_btn.setEnabled(False)
@@ -650,6 +836,7 @@ class LiveTab(QWidget):
 
         self._transcript = QTextEdit()
         self._transcript.setReadOnly(True)
+        self._transcript.setPlaceholderText("Start interpretation and speak ...")
         self._transcript.setPlaceholderText("Start interpretation and speak ...")
         root.addWidget(self._transcript)
 
@@ -676,6 +863,8 @@ class LiveTab(QWidget):
             engine=_engine,
             mms_tts=_mms_tts,
             eng_tts=_eng_tts,
+            input_device=parse_input_device(self._mic_combo.currentText()),
+            output_device=parse_output_device(self._output_combo.currentText()),
         )
         self._pipeline.start_microphone()
         self._set_running(True)
@@ -694,13 +883,14 @@ class LiveTab(QWidget):
 
     def _set_running(self, running: bool) -> None:
         self._status_label.setText("Interpreting ..." if running else "Stopped")
-        self._status_label.setStyleSheet(
-            "color: #1d6f5f; font-weight: bold;" if running else "color: #9a4b22; font-weight: bold;"
-        )
+        style = "color: #1d6f5f; font-weight: bold;" if running else "color: #9a4b22; font-weight: bold;"
+        self._status_label.setStyleSheet(style)
         self._start_btn.setEnabled(not running)
         self._stop_btn.setEnabled(running)
         self._src_combo.setEnabled(not running)
         self._tgt_combo.setEnabled(not running)
+        self._mic_combo.setEnabled(not running)
+        self._output_combo.setEnabled(not running)
 
     def _clear(self) -> None:
         self._transcript.clear()
@@ -713,7 +903,11 @@ class LiveTab(QWidget):
             f'<div style="margin-bottom:10px; padding:10px; '
             f'background:#ffffff; border-radius:8px; border:1px solid #d9dfd2; border-left:3px solid #d95f43;">'
             f'<span style="color:#5e6a61; font-size:11px;">'
+            f'background:#ffffff; border-radius:8px; border:1px solid #d9dfd2; border-left:3px solid #d95f43;">'
+            f'<span style="color:#5e6a61; font-size:11px;">'
             f'#{self._entry_count} &nbsp;·&nbsp; {src.capitalize()} → {tgt.capitalize()}</span><br>'
+            f'<span style="color:#17201b;">{original}</span><br>'
+            f'<span style="color:#1d6f5f; font-weight:bold;">↳ {translated}</span>'
             f'<span style="color:#17201b;">{original}</span><br>'
             f'<span style="color:#1d6f5f; font-weight:bold;">↳ {translated}</span>'
             f'</div>'
@@ -762,6 +956,7 @@ class TextTab(QWidget):
         input_layout = QVBoxLayout(input_group)
         self._input_edit = QTextEdit()
         self._input_edit.setPlaceholderText("Type or paste text here ...")
+        self._input_edit.setPlaceholderText("Type or paste text here ...")
         input_layout.addWidget(self._input_edit)
         splitter.addWidget(input_group)
 
@@ -769,6 +964,7 @@ class TextTab(QWidget):
         output_layout = QVBoxLayout(output_group)
         self._output_edit = QTextEdit()
         self._output_edit.setReadOnly(True)
+        self._output_edit.setPlaceholderText("Translation will appear here ...")
         self._output_edit.setPlaceholderText("Translation will appear here ...")
         output_layout.addWidget(self._output_edit)
         splitter.addWidget(output_group)
@@ -781,6 +977,7 @@ class TextTab(QWidget):
         self._translate_btn.clicked.connect(self._translate)
         ctrl_row.addWidget(self._translate_btn)
         self._status_lbl = QLabel("")
+        self._status_lbl.setStyleSheet("color: #5e6a61;")
         self._status_lbl.setStyleSheet("color: #5e6a61;")
         ctrl_row.addWidget(self._status_lbl)
         ctrl_row.addStretch()
@@ -795,6 +992,7 @@ class TextTab(QWidget):
         tgt = self._tgt_combo.currentText().lower()
 
         self._translate_btn.setEnabled(False)
+        self._status_lbl.setText("Translating ...")
         self._status_lbl.setText("Translating ...")
 
         self._worker = _TranslateWorker(text, src, tgt, self._tts_check.isChecked())
@@ -849,7 +1047,9 @@ class DocumentTab(QWidget):
         file_row = QHBoxLayout()
         self._file_label = QLabel("No file selected")
         self._file_label.setStyleSheet("color: #5e6a61;")
+        self._file_label.setStyleSheet("color: #5e6a61;")
         file_row.addWidget(self._file_label, stretch=1)
+        browse_btn = QPushButton("Browse")
         browse_btn = QPushButton("Browse")
         browse_btn.clicked.connect(self._browse)
         file_row.addWidget(browse_btn)
@@ -866,6 +1066,7 @@ class DocumentTab(QWidget):
         self._translate_btn.clicked.connect(self._translate)
         ctrl_row.addWidget(self._translate_btn)
         self._save_btn = QPushButton("Save translated file")
+        self._save_btn = QPushButton("Save translated file")
         self._save_btn.setEnabled(False)
         self._save_btn.clicked.connect(self._save)
         ctrl_row.addWidget(self._save_btn)
@@ -879,6 +1080,7 @@ class DocumentTab(QWidget):
         self._preview = QTextEdit()
         self._preview.setReadOnly(True)
         self._preview.setPlaceholderText("Upload a .txt, .pdf, or .docx file to begin ...")
+        self._preview.setPlaceholderText("Upload a .txt, .pdf, or .docx file to begin ...")
         root.addWidget(self._preview)
 
     def _browse(self) -> None:
@@ -889,6 +1091,7 @@ class DocumentTab(QWidget):
         if path:
             self._file_path = path
             self._file_label.setText(Path(path).name)
+            self._file_label.setStyleSheet("color: #17201b;")
             self._file_label.setStyleSheet("color: #17201b;")
             self._translate_btn.setEnabled(True)
 
@@ -949,6 +1152,27 @@ class SettingsTab(QWidget):
         root.setContentsMargins(14, 14, 14, 14)
 
         # ── Hardware & Device ───────────────────────────────────────────
+        runtime_group = QGroupBox("Workspace Resources")
+        runtime_layout = QVBoxLayout(runtime_group)
+        runtime_layout.setSpacing(8)
+        self._runtime_lbl = QLabel()
+        self._runtime_lbl.setWordWrap(True)
+        runtime_layout.addWidget(self._runtime_lbl)
+        runtime_buttons = QHBoxLayout()
+        refresh_btn = QPushButton("Refresh")
+        refresh_btn.clicked.connect(self._refresh_runtime)
+        runtime_buttons.addWidget(refresh_btn)
+        clear_btn = QPushButton("Clear GPU Cache")
+        clear_btn.clicked.connect(self._clear_gpu_cache)
+        runtime_buttons.addWidget(clear_btn)
+        runtime_buttons.addStretch()
+        runtime_layout.addLayout(runtime_buttons)
+        root.addWidget(runtime_group)
+        self._refresh_runtime()
+        self._runtime_timer = QTimer(self)
+        self._runtime_timer.timeout.connect(self._refresh_runtime)
+        self._runtime_timer.start(3000)
+
         hw_group = QGroupBox("Hardware & Device")
         hw_layout = QVBoxLayout(hw_group)
         hw_layout.setSpacing(6)
@@ -956,15 +1180,24 @@ class SettingsTab(QWidget):
         if GPU_INFO["available"] and DEVICE == "cuda":
             gpu_text = (
                 f"GPU: {GPU_INFO['name']}  ·  "
+                f"GPU: {GPU_INFO['name']}  ·  "
                 f"{GPU_INFO['vram_gb']:.1f} GB VRAM  ·  "
                 f"Compute {GPU_INFO['compute']}"
             )
             gpu_lbl = QLabel(gpu_text)
             gpu_lbl.setStyleSheet("color: #1d6f5f; font-weight: bold;")
+            gpu_lbl.setStyleSheet("color: #1d6f5f; font-weight: bold;")
         else:
-            gpu_lbl = QLabel("GPU: Not available — running on CPU")
+            gpu_lbl = QLabel(_gpu_unavailable_text())
+            if GPU_INFO.get("reason"):
+                gpu_lbl.setToolTip(str(GPU_INFO["reason"]))
             gpu_lbl.setStyleSheet("color: #9a4b22; font-weight: bold;")
         hw_layout.addWidget(gpu_lbl)
+        if not GPU_INFO["available"] and GPU_INFO.get("reason"):
+            reason_lbl = QLabel(str(GPU_INFO["reason"]))
+            reason_lbl.setWordWrap(True)
+            reason_lbl.setStyleSheet("color: #6b746c; font-size: 11px;")
+            hw_layout.addWidget(reason_lbl)
 
         hw_layout.addWidget(QLabel(f"Active device :  {DEVICE.upper()}"))
         hw_layout.addWidget(QLabel(f"Torch dtype   :  {TORCH_DTYPE}"))
@@ -982,12 +1215,15 @@ class SettingsTab(QWidget):
             "low":  "Lite / fast  —  CPU only or < 4 GB VRAM   ·  smallest footprint models",
         }
         _profile_colors = {"high": "#1d6f5f", "mid": "#7a5c00", "low": "#9a4b22"}
+        _profile_colors = {"high": "#1d6f5f", "mid": "#7a5c00", "low": "#9a4b22"}
 
         profile_lbl = QLabel(
+            f"Profile: {HARDWARE_PROFILE.upper()}  —  "
             f"Profile: {HARDWARE_PROFILE.upper()}  —  "
             f"{_profile_desc.get(HARDWARE_PROFILE, '')}"
         )
         profile_lbl.setStyleSheet(
+            f"color: {_profile_colors.get(HARDWARE_PROFILE, '#17201b')}; font-weight: bold;"
             f"color: {_profile_colors.get(HARDWARE_PROFILE, '#17201b')}; font-weight: bold;"
         )
         profile_lbl.setWordWrap(True)
@@ -996,11 +1232,15 @@ class SettingsTab(QWidget):
         profile_layout.addWidget(QLabel(f"Translation : {MODEL_NLLB}"))
         profile_layout.addWidget(QLabel(f"English ASR : {MODEL_WHISPER}"))
         profile_layout.addWidget(QLabel(f"African ASR : {MODEL_MMS_ASR}"))
+        profile_layout.addWidget(QLabel(f"Translation : {MODEL_NLLB}"))
+        profile_layout.addWidget(QLabel(f"English ASR : {MODEL_WHISPER}"))
+        profile_layout.addWidget(QLabel(f"African ASR : {MODEL_MMS_ASR}"))
 
         note = QLabel(
             "Models are chosen automatically based on detected hardware.\n"
             "Override any model in your .env file (MODEL_NLLB, MODEL_WHISPER, MODEL_MMS_ASR)."
         )
+        note.setStyleSheet("color: #6b746c; font-size: 11px;")
         note.setStyleSheet("color: #6b746c; font-size: 11px;")
         note.setWordWrap(True)
         profile_layout.addWidget(note)
@@ -1034,6 +1274,7 @@ class SettingsTab(QWidget):
             "Powered by:\n"
             "  • Meta NLLB-200 (translation)\n"
             "  • Meta MMS-1B-All (African language speech recognition)\n"
+            "  • Meta MMS-1B-All (African language speech recognition)\n"
             "  • OpenAI Whisper (English speech recognition)\n"
             "  • Meta MMS-VITS (text-to-speech)\n"
             "  • Silero VAD (voice activity detection)\n\n"
@@ -1043,6 +1284,24 @@ class SettingsTab(QWidget):
         root.addWidget(about_group)
 
         root.addStretch()
+
+    def _refresh_runtime(self) -> None:
+        snap = get_runtime_snapshot()
+        if snap.gpu_available:
+            text = (
+                f"GPU active: {snap.gpu_allocated_gb:.2f} GB allocated / "
+                f"{snap.gpu_total_gb:.1f} GB total. "
+                f"Reserved: {snap.gpu_reserved_gb:.2f} GB. "
+                f"App RAM: {snap.process_ram_gb:.2f} GB."
+            )
+        else:
+            text = f"CPU mode. App RAM: {snap.process_ram_gb:.2f} GB."
+        self._runtime_lbl.setText(text)
+
+    def _clear_gpu_cache(self) -> None:
+        message = clear_accelerator_cache()
+        self._refresh_runtime()
+        QMessageBox.information(self, "AfriLingua", message)
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -1076,6 +1335,18 @@ class MainWindow(QMainWindow):
 
     def _setup_status_bar(self) -> None:
         bar = QStatusBar()
+        snap = get_runtime_snapshot()
+        if snap.gpu_available:
+            resource_text = (
+                f"GPU {snap.gpu_allocated_gb:.2f}/{snap.gpu_total_gb:.1f} GB  |  "
+                f"RAM {snap.process_ram_gb:.2f} GB"
+            )
+        else:
+            resource_text = f"CPU mode  |  RAM {snap.process_ram_gb:.2f} GB"
+        bar.showMessage("AfriLingua workspace ready")
+        bar.addPermanentWidget(QLabel(resource_text))
+        self.setStatusBar(bar)
+        return
         _profile_colors = {"high": "#1d6f5f", "mid": "#7a5c00", "low": "#9a4b22"}
         _pc = _profile_colors.get(HARDWARE_PROFILE, "#17201b")
         profile_lbl = QLabel(
@@ -1084,7 +1355,7 @@ class MainWindow(QMainWindow):
         if GPU_INFO["available"] and DEVICE == "cuda":
             hw_text = f"{GPU_INFO['name']}  ·  {GPU_INFO['vram_gb']:.1f} GB VRAM"
         else:
-            hw_text = "CPU only"
+            hw_text = _gpu_unavailable_text(prefix="GPU").replace("GPU: ", "")
         bar.showMessage(f"AfriLingua ready  ·  {hw_text}")
         bar.addPermanentWidget(QLabel(f"{HARDWARE_PROFILE.upper()} profile  ·  {DEVICE.upper()}  ·  {TORCH_DTYPE}"))
         self.setStatusBar(bar)
@@ -1174,6 +1445,7 @@ def main() -> None:
                 None,
                 "AfriLingua — Internet Connection Required",
                 "⚠  No internet connection detected.\n\n"
+                "AfriLingua needs to download AI model weights on first run (~7-8 GB).\n"
                 "AfriLingua needs to download AI model weights on first run (~7-8 GB).\n"
                 "Please connect to the internet and restart the app.\n\n"
                 "Once downloaded, the app works fully offline.",
