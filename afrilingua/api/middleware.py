@@ -119,10 +119,6 @@ class APIKeyMiddleware:
         )
 
 
-class _TooLarge(Exception):
-    pass
-
-
 class BodySizeLimitMiddleware:
     def __init__(self, app: ASGIApp, max_bytes: int) -> None:
         self.app = app
@@ -142,33 +138,37 @@ class BodySizeLimitMiddleware:
 
         received = 0
         started = False
+        rejected = False
 
         async def limited_receive() -> Message:
-            nonlocal received
+            nonlocal received, rejected
+            if rejected:
+                return {"type": "http.disconnect"}
             msg = await receive()
             if msg["type"] == "http.request":
                 received += len(msg.get("body", b""))
                 if received > self.max_bytes:
-                    raise _TooLarge
+                    # Answer 413 now and make the app believe the client went away; whatever it
+                    # sends afterwards is dropped (frameworks often wrap body-read exceptions).
+                    rejected = True
+                    if not started:
+                        await send_json(send, 413, error_body("payload_too_large", message, openai=openai))
+                    return {"type": "http.disconnect"}
             return msg
 
         async def tracking_send(msg: Message) -> None:
             nonlocal started
+            if rejected:
+                return
             if msg["type"] == "http.response.start":
                 started = True
             await send(msg)
 
         try:
             await self.app(scope, limited_receive, tracking_send)
-        except _TooLarge:
-            if not started:
-                await send_json(send, 413, error_body("payload_too_large", message, openai=openai))
-        except Exception as exc:  # python-multipart / starlette may wrap our exception
-            if isinstance(exc.__cause__, _TooLarge) or isinstance(exc.__context__, _TooLarge):
-                if not started:
-                    await send_json(send, 413, error_body("payload_too_large", message, openai=openai))
-                return
-            raise
+        except Exception:
+            if not rejected:
+                raise
 
 
 class ServerTimingMiddleware:

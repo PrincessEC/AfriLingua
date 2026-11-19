@@ -63,7 +63,7 @@ async def create_document_job(
     if not data:
         raise InvalidInputError("The uploaded document is empty.")
     job = await run_in_threadpool(jobs.submit, name, data, tgt, src)
-    return {"id": job.id, "status": job.status}
+    return {"id": job.id, "status": "queued"}  # state at creation (the worker may already be running)
 
 
 @router.get("/documents/{job_id}", response_model=JobStatus, responses=ERROR_RESPONSES, summary="Job status")
