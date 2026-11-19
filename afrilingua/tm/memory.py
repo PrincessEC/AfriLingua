@@ -15,8 +15,12 @@ Lookup path for ``search(query, src, tgt, k)``:
    mat-vec), which are reranked with rapidfuzz (``ratio`` / ``token_set_ratio``
    blend). Non-exact matches are capped at 0.99 so only a true normalised match
    can reach 1.0.
-3. **Semantic** (optional): when an embedder is configured, its candidates are
-   merged and the final score is ``0.75 * fuzzy + 0.25 * cosine``.
+3. **Meaning** (``mode="meaning"`` only): when a sentence embedder is available,
+   candidates with a similar *meaning* are merged in and ranked by
+   ``max(wording score, cosine)``; each match is labelled ``exact``, ``wording``
+   or ``meaning``. The engine's translation path always uses ``mode="fast"``, so
+   meaning search never adds latency to translation. Embeddings are computed by a
+   background worker, so adding or importing entries never waits on the model.
 
 Indexes are loaded lazily per pair, reconciled against SQLite (missing ids added,
 stale ids removed) and rebuilt from SQLite if the files are corrupt, so SQLite is
@@ -29,6 +33,7 @@ from __future__ import annotations
 import contextlib
 import json
 import logging
+import queue
 import shutil
 import sqlite3
 import threading
@@ -115,6 +120,12 @@ class TranslationMemory:
         self._indexes: dict[tuple[str, str], CharNgramIndex] = {}
         self._semantic: dict[tuple[str, str], DenseIndex] = {}
         self._closed = False
+        self._sem_queue: queue.Queue[tuple[tuple[str, str], list[str], list[str]]] = queue.Queue()
+        self._sem_lock = threading.Lock()
+        self._sem_pending: dict[tuple[str, str], int] = {}
+        self._sem_worker: threading.Thread | None = None
+        self._sem_stop = threading.Event()
+        self._sem_error: str | None = None
         #: Bumped on every write (add, approve, delete). Caches built on top of the TM
         #: (the engine's translation cache) compare it to know when to drop stale entries.
         self.generation = 0
@@ -282,9 +293,94 @@ class TranslationMemory:
                     idx = None
                 if idx is None:
                     idx = DenseIndex(self.embedder)
-                self._reconcile(idx, src, tgt)
                 self._semantic[pair] = idx
+                self._reconcile_semantic(idx, src, tgt)
             return idx
+
+    # ── meaning index: background embedding ─────────────────────────────────
+    @property
+    def meaning_available(self) -> bool:
+        """True when meaning-based search can run (embedder configured and healthy)."""
+        return self.embedder is not None and self._sem_error is None
+
+    def _reconcile_semantic(self, idx: DenseIndex, src: str, tgt: str) -> None:
+        """Drop vectors for deleted rows; queue rows that have no vector yet."""
+        with self._conn() as conn:
+            rows = conn.execute(
+                "SELECT id, source FROM entries WHERE src_lang=? AND tgt_lang=?", (src, tgt)
+            ).fetchall()
+        db = {r[0]: r[1] for r in rows}
+        have = idx.ids()
+        for stale in have - set(db):
+            idx.remove(stale)
+        missing = [i for i in db if i not in have]
+        if missing:
+            self._queue_semantic((src, tgt), missing, [db[i] for i in missing])
+
+    def _queue_semantic(self, pair: tuple[str, str], ids: list[str], texts: list[str]) -> None:
+        if not self.meaning_available or not ids:
+            return
+        with self._sem_lock:
+            self._sem_pending[pair] = self._sem_pending.get(pair, 0) + len(ids)
+            if self._sem_worker is None or not self._sem_worker.is_alive():
+                self._sem_worker = threading.Thread(
+                    target=self._semantic_loop, name="tm-semantic-indexer", daemon=True
+                )
+                self._sem_worker.start()
+        self._sem_queue.put((pair, list(ids), list(texts)))
+
+    def _semantic_loop(self) -> None:
+        batch = 64
+        while not self._sem_stop.is_set():
+            try:
+                pair, ids, texts = self._sem_queue.get(timeout=0.5)
+            except queue.Empty:
+                continue
+            try:
+                idx = self._semantic_index(*pair)
+                if idx is None:
+                    continue
+                for i in range(0, len(ids), batch):
+                    if self._sem_stop.is_set():
+                        break
+                    idx.add(ids[i : i + batch], texts[i : i + batch])
+                    with self._sem_lock:
+                        self._sem_pending[pair] = max(
+                            0, self._sem_pending.get(pair, 0) - len(ids[i : i + batch])
+                        )
+                if self._sem_queue.empty() and idx.dirty:
+                    self._safe_save(idx, self._semantic_dir(*pair))
+            except Exception as exc:
+                self._sem_error = f"{type(exc).__name__}: {exc}"
+                logger.exception("Meaning index disabled: the sentence embedder failed")
+                with self._sem_lock:
+                    self._sem_pending.clear()
+                return
+
+    def wait_for_semantic_index(self, timeout: float = 60.0) -> bool:
+        """Block until queued embeddings are done (tests, CLI). True if fully indexed."""
+        deadline = time.monotonic() + timeout
+        while time.monotonic() < deadline:
+            with self._sem_lock:
+                pending = sum(self._sem_pending.values())
+            if pending == 0 and self._sem_queue.empty():
+                return True
+            if self._sem_error is not None:
+                return False
+            time.sleep(0.05)
+        return False
+
+    def semantic_status(self) -> dict[str, Any]:
+        """Status of meaning-based search for /status and the UI."""
+        with self._sem_lock:
+            pending = sum(self._sem_pending.values())
+        return {
+            "enabled": self.meaning_available,
+            "model": getattr(self.embedder, "model_id", None),
+            "error": self._sem_error,
+            "pending": pending,
+            "indexed": {f"{a}->{b}": len(i) for (a, b), i in self._semantic.items()},
+        }
 
     @staticmethod
     def _safe_save(index: CharNgramIndex | DenseIndex, directory: Path) -> None:
@@ -350,7 +446,6 @@ class TranslationMemory:
         self, src: str, tgt: str, items: list[_Prepared], *, origin: str, approved: bool
     ) -> list[str]:
         index = self._pair_index(src, tgt)
-        sem = self._semantic_index(src, tgt)
         now = _now()
         sql = (
             f"INSERT INTO entries ({_COLUMNS}) VALUES (?,?,?,?,?,?,?,?,?,?,1) "
@@ -375,65 +470,87 @@ class TranslationMemory:
         if new_pairs:
             new_ids = list(new_pairs)
             index.add(new_ids, [base_form(new_pairs[i]) for i in new_ids])
-            if sem is not None:
-                sem.add(new_ids, [new_pairs[i] for i in new_ids])
+            sources = {i: p.source for i, p in zip(ids, items, strict=True)}
+            self._queue_semantic((src, tgt), new_ids, [sources[i] for i in new_ids])
         return ids
 
     def lookup(self, text: str, src_lang: str, tgt_lang: str, *, k: int = 3) -> list[TMMatch]:
-        """Protocol method used by the engine: best ``k`` matches, best first."""
-        return self.search(text, src_lang, tgt_lang, k=k)[0]
+        """Protocol method used by the engine (translation path): exact + wording only."""
+        return self.search(text, src_lang, tgt_lang, k=k, mode="fast")[0]
 
     def search(
-        self, query: str, src_lang: str, tgt_lang: str, k: int = 5, *, min_score: float = 0.3
+        self,
+        query: str,
+        src_lang: str,
+        tgt_lang: str,
+        k: int = 5,
+        *,
+        min_score: float = 0.3,
+        mode: str = "fast",
     ) -> tuple[list[TMMatch], float]:
-        """Return ``(matches, took_ms)``; see module docstring for the algorithm."""
+        """Return ``(matches, took_ms)``; see module docstring for the algorithm.
+
+        ``mode="fast"`` (translation path): exact key, then similar wording.
+        ``mode="meaning"`` (search and suggestions): also sentences with a similar
+        meaning, when the embedder is available; otherwise it behaves like ``fast``.
+        """
         t0 = time.perf_counter()
         src, tgt = self._langs(src_lang, tgt_lang)
         k = max(1, min(int(k), 100))
         key = tm_key(query or "")
         if not key:
             return [], (time.perf_counter() - t0) * 1000
+        meaning = mode == "meaning" and self.meaning_available
         with self._conn() as conn:
             exact = conn.execute(
                 f"SELECT {_COLUMNS} FROM entries WHERE src_lang=? AND tgt_lang=? AND source_norm=? "
                 "ORDER BY approved DESC, uses DESC, updated_at DESC LIMIT ?",
                 (src, tgt, key, k),
             ).fetchall()
-        if exact:
-            matches = [
-                TMMatch(r["id"], r["source"], r["target"], 1.0, bool(r["approved"]), r["origin"])
-                for r in exact
-            ]
-            return matches, (time.perf_counter() - t0) * 1000
+        exact_matches = [
+            TMMatch(r["id"], r["source"], r["target"], 1.0, bool(r["approved"]), r["origin"], "exact")
+            for r in exact
+        ]
+        if exact_matches and (not meaning or len(exact_matches) >= k):
+            return exact_matches, (time.perf_counter() - t0) * 1000
 
         index = self._pair_index(src, tgt)
         n_cand = max(4 * k, 16)
         cands = dict(index.search(base_form(key), n_cand))
-        sem = self._semantic_index(src, tgt)
         sem_scores: dict[str, float] = {}
-        if sem is not None:
-            qv = sem.vector_for_query(key)
-            for entry_id, score in sem.search_vector(qv, n_cand):
-                cands.setdefault(entry_id, 0.0)
-                sem_scores[entry_id] = score
-            missing = [i for i in cands if i not in sem_scores]
-            sem_scores.update(sem.similarities(qv, missing))
+        if meaning:
+            try:
+                sem = self._semantic_index(src, tgt)
+                if sem is not None and len(sem):
+                    qv = sem.vector_for_query(query)
+                    for entry_id, score in sem.search_vector(qv, n_cand):
+                        cands.setdefault(entry_id, 0.0)
+                        sem_scores[entry_id] = score
+                    missing = [i for i in cands if i not in sem_scores]
+                    sem_scores.update(sem.similarities(qv, missing))
+            except Exception as exc:  # the embedder is optional: fall back to wording
+                self._sem_error = f"{type(exc).__name__}: {exc}"
+                logger.exception("Meaning search failed; using wording search")
+                sem_scores = {}
+        exact_ids = {m.id for m in exact_matches}
+        for entry_id in exact_ids:
+            cands.pop(entry_id, None)
         if not cands:
-            return [], (time.perf_counter() - t0) * 1000
+            return exact_matches, (time.perf_counter() - t0) * 1000
         rows = self._fetch(list(cands))
-        scored: list[tuple[float, bool, int, sqlite3.Row]] = []
+        sem_min = get_settings().tm_semantic_min
+        scored: list[tuple[float, bool, int, str, sqlite3.Row]] = []
         for r in rows:
-            score = min(similarity(key, r["source_norm"]), NON_EXACT_CAP)
-            if sem is not None:
-                score = (1 - SEMANTIC_WEIGHT) * score + SEMANTIC_WEIGHT * max(
-                    0.0, sem_scores.get(r["id"], 0.0)
-                )
-            if score >= min_score:
-                scored.append((score, bool(r["approved"]), int(r["uses"]), r))
+            wording = min(similarity(key, r["source_norm"]), NON_EXACT_CAP)
+            cos = sem_scores.get(r["id"], 0.0)
+            if cos >= sem_min and cos > wording:
+                scored.append((min(cos, NON_EXACT_CAP), bool(r["approved"]), int(r["uses"]), "meaning", r))
+            elif wording >= min_score:
+                scored.append((wording, bool(r["approved"]), int(r["uses"]), "wording", r))
         scored.sort(key=lambda t: (t[0], t[1], t[2]), reverse=True)
-        matches = [
-            TMMatch(r["id"], r["source"], r["target"], round(float(s), 4), appr, r["origin"])
-            for s, appr, _u, r in scored[:k]
+        matches = exact_matches + [
+            TMMatch(r["id"], r["source"], r["target"], round(float(sc), 4), appr, r["origin"], kind)
+            for sc, appr, _u, kind, r in scored[: k - len(exact_matches)]
         ]
         return matches, (time.perf_counter() - t0) * 1000
 
@@ -609,6 +726,10 @@ class TranslationMemory:
     def close(self) -> None:
         if self._closed:
             return
+        self._sem_stop.set()
+        worker = self._sem_worker
+        if worker is not None and worker.is_alive():
+            worker.join(timeout=5)
         try:
             self.flush()
         finally:
@@ -629,14 +750,18 @@ class TranslationMemory:
 def open_translation_memory(path: str | Path | None = None) -> TranslationMemory:
     """Open (creating if needed) the translation memory at ``path``.
 
-    Default location: ``settings.data_dir / "tm"``. If ``settings.model_embedder`` is
-    set, semantic blending with that model is enabled (loaded lazily).
+    Default location: ``settings.data_dir / "tm"``. Meaning-based search uses
+    ``settings.model_embedder`` when ``settings.tm_semantic`` is ``"on"``, or ``"auto"``
+    and the model is already downloaded (it is loaded lazily, off the translation path).
     """
     settings = get_settings()
     directory = Path(path) if path is not None else settings.data_dir / "tm"
     embedder = None
-    if settings.model_embedder.strip():
-        from afrilingua.tm.embedder import TransformersEmbedder
+    model = settings.model_embedder.strip()
+    mode = (settings.tm_semantic or "auto").lower()
+    if model and mode != "off":
+        from afrilingua.tm.embedder import TransformersEmbedder, embedder_available
 
-        embedder = TransformersEmbedder(settings.model_embedder.strip())
+        if mode == "on" or embedder_available(model):
+            embedder = TransformersEmbedder(model)
     return TranslationMemory(directory, embedder=embedder)

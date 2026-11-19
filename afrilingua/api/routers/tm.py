@@ -43,10 +43,14 @@ async def search_tm(
     src_lang: str = Query(...),
     tgt_lang: str = Query(...),
     k: int = Query(5, ge=1, le=100),
+    mode: str = Query("auto", pattern="^(auto|fast|meaning)$", description="meaning = also similar meaning"),
 ) -> dict[str, Any]:
     tm = _require_tm(request)
-    matches, took_ms = await run_in_threadpool(tm.search, q, src_lang, tgt_lang, k)
+    available = bool(getattr(tm, "meaning_available", False))
+    used = ("meaning" if available else "fast") if mode == "auto" else mode
+    matches, took_ms = await run_in_threadpool(lambda: tm.search(q, src_lang, tgt_lang, k, mode=used))
     return {
+        "mode": used if (used != "meaning" or available) else "fast",
         "matches": [
             {
                 "id": m.id,
@@ -55,6 +59,7 @@ async def search_tm(
                 "score": m.score,
                 "approved": m.approved,
                 "origin": m.origin,
+                "kind": m.kind,
             }
             for m in matches
         ],

@@ -486,7 +486,9 @@ def build_mcp(
             limit: Maximum matches (1–50).
 
         Returns:
-            {"matches": [{id, source, target, score (0..1), approved, origin}], "took_ms": n}
+            {"matches": [{id, source, target, score (0..1), approved, origin, kind}], "took_ms": n}
+            where kind is "exact", "wording" (similar text) or "meaning" (similar meaning).
+            Only "exact" matches are translations of `query`; the others are suggestions.
         """
         engine = rt.engine
         src = engine.registry.normalize(source_language)
@@ -495,7 +497,12 @@ def build_mcp(
         if tm is None:
             raise CapabilityUnavailableError("The translation memory is not available on this server.")
         t0 = time.perf_counter()
-        matches = tm.lookup(query, src, tgt, k=max(1, min(int(limit), 50)))
+        limit = max(1, min(int(limit), 50))
+        search = getattr(tm, "search", None)
+        if callable(search):
+            matches, _ = search(query, src, tgt, limit, mode="meaning")
+        else:
+            matches = tm.lookup(query, src, tgt, k=limit)
         return {"matches": to_plain(list(matches)), "took_ms": round((time.perf_counter() - t0) * 1000, 2)}
 
     @server.tool(annotations=WRITE)

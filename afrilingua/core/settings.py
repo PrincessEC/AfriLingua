@@ -59,10 +59,15 @@ class Settings(BaseSettings):
     model_mms_asr: str = "facebook/mms-1b-all"
     model_mms_tts_english: str = "facebook/mms-tts-eng"
     model_embedder: str = Field(
-        default="",
-        description="Optional semantic embedder for the translation memory (e.g. sentence-transformers/LaBSE). "
-        "Empty = fast built-in char n-gram vectors.",
+        default="intfloat/multilingual-e5-small",
+        description="Sentence embedder for meaning-based translation-memory search (about 470 MB). "
+        "Used for search and suggestions only, never on the translation path.",
     )
+    #: Meaning-based TM search: "auto" = on when the embedder is downloaded, "on" = always
+    #: (downloads it on first use), "off" = wording-based search only.
+    tm_semantic: str = "auto"
+    #: Minimum cosine similarity for a "similar meaning" suggestion.
+    tm_semantic_min: float = 0.80
 
     # Live vs. document decoding
     live_beam_size: int = 1

@@ -109,6 +109,22 @@ def _steps(settings: Settings, plan: RuntimePlan, langs: Sequence[str]) -> list[
                 )
             )
 
+    embedder = settings.model_embedder.strip()
+    if embedder and (settings.tm_semantic or "auto").lower() != "off":
+        steps.append(
+            (
+                PullItem("embedder", embedder),
+                lambda: str(
+                    snapshot_path(
+                        embedder,
+                        settings,
+                        allow_patterns=["*.json", "*.safetensors", "sentencepiece.bpe.model", "*.txt"],
+                        required_any=("config.json",),
+                    )
+                ),
+            )
+        )
+
     steps.append((PullItem("vad", "silero-vad (bundled)"), _silero))
     return steps
 

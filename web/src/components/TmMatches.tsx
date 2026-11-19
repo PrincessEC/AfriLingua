@@ -40,7 +40,7 @@ export function MatchList({
             {m.target}
           </p>
           <div className="flex flex-wrap items-center gap-2 sm:justify-end">
-            <ScoreBar score={m.score} />
+            {m.kind === "meaning" ? <Pill tone="accent">Similar meaning</Pill> : <ScoreBar score={m.score} />}
             {m.approved ? <Pill tone="ok">Approved</Pill> : <Pill>Unreviewed</Pill>}
             {m.origin && m.origin !== "manual" && <OriginBadge origin={m.origin} className="hidden md:inline-flex" />}
             {onUse && (

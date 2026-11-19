@@ -16,7 +16,20 @@ import numpy as np
 
 logger = logging.getLogger(__name__)
 
-__all__ = ["TransformersEmbedder"]
+__all__ = ["TransformersEmbedder", "embedder_available"]
+
+
+def embedder_available(model_id: str) -> bool:
+    """True if ``model_id`` is already in the local model cache (no network access)."""
+    try:
+        from huggingface_hub import try_to_load_from_cache
+
+        from afrilingua.core.settings import get_settings
+
+        found = try_to_load_from_cache(model_id, "config.json", cache_dir=str(get_settings().hf_cache))
+        return isinstance(found, str)
+    except Exception:
+        return False
 
 
 class TransformersEmbedder:
@@ -32,6 +45,8 @@ class TransformersEmbedder:
         self._lock = threading.Lock()
         self._tok: Any = None
         self._model: Any = None
+        # E5 models expect a task prefix; "query: " is the symmetric-similarity form.
+        self.prefix = "query: " if "e5" in model_id.lower() else ""
 
     def _load(self) -> None:
         if self._model is not None:
@@ -40,10 +55,16 @@ class TransformersEmbedder:
 
         from afrilingua.core.settings import get_settings
 
-        cache = str(get_settings().hf_cache)
+        settings = get_settings()
+        cache = str(settings.hf_cache)
+        local = bool(settings.offline) or embedder_available(self.model_id)
         logger.info("Loading TM embedder %s", self.model_id)
-        self._tok = AutoTokenizer.from_pretrained(self.model_id, cache_dir=cache)
-        self._model = AutoModel.from_pretrained(self.model_id, cache_dir=cache).to(self.device).eval()
+        self._tok = AutoTokenizer.from_pretrained(self.model_id, cache_dir=cache, local_files_only=local)
+        self._model = (
+            AutoModel.from_pretrained(self.model_id, cache_dir=cache, local_files_only=local)
+            .to(self.device)
+            .eval()
+        )
 
     def __call__(self, texts: list[str]) -> np.ndarray:
         import torch
@@ -52,7 +73,7 @@ class TransformersEmbedder:
             self._load()
             out: list[np.ndarray] = []
             for i in range(0, len(texts), self.batch_size):
-                batch = texts[i : i + self.batch_size]
+                batch = [self.prefix + t for t in texts[i : i + self.batch_size]]
                 enc = self._tok(
                     batch, padding=True, truncation=True, max_length=self.max_length, return_tensors="pt"
                 )

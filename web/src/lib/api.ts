@@ -88,6 +88,8 @@ export interface TMMatch {
   score: number;
   approved: boolean;
   origin: string;
+  /** "exact" = a translation of this text; "wording" / "meaning" = suggestions only. */
+  kind?: "exact" | "wording" | "meaning" | "";
 }
 
 export interface TranslationResult {
@@ -131,6 +133,8 @@ export interface DocumentJob {
 export interface TMSearchResponse {
   matches: TMMatch[];
   took_ms: number;
+  /** "meaning" when similar-meaning search was used, "fast" for wording only. */
+  mode?: "fast" | "meaning";
 }
 
 export interface TMEntryIn {

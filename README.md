@@ -152,6 +152,7 @@ Measured 19 Nov 2026 on a Ryzen 9 5900HS laptop (8 cores), CPU only, int8, 8 thr
 
 - **Strong open baselines.** Meta NLLB-200 for translation, MMS for African-language speech, Whisper for English.
 - **Corrections apply on the next request.** An approved correction becomes a translation-memory entry and is served exactly as written.
+- **Search by meaning.** Translation memory is vectorised, so searching "Where can I find the closest hospital?" finds the approved translation of "Where is the nearest clinic?". These are labelled as suggestions; only exact matches are ever used automatically.
 - **A new model ships only if it wins.** Fine-tuned models must beat the current one on held-out data: chrF++ on FLORES-200 for text, WER on FLEURS for speech. FLORES is never used for training.
 - **Tone marks survive.** Yoruba tone marks and Igbo dot-below letters are normalised before translation and speech, so *ọkọ*, *ọkọ̀* and *ọ̀kọ̀* stay three different words.
 
@@ -226,6 +227,7 @@ Everything is optional and set through environment variables or `.env`. See [.en
 | `AFRILINGUA_OFFLINE` | `0` | `1` = never touch the network |
 | `API_KEYS` | empty | Comma-separated keys. Required before exposing the server |
 | `MODEL_NLLB` | from profile | Swap the translation model |
+| `TM_SEMANTIC` | `auto` | Search translation memory by meaning (`auto` = on once the ~470 MB embedder is downloaded by `models pull`) |
 
 ## Architecture
 

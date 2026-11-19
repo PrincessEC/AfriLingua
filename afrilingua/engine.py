@@ -53,6 +53,7 @@ class TMMatch:
     score: float  # 0..1 similarity of `source` to the query
     approved: bool
     origin: str = ""  # "community" | "session" | "import" | "mt"
+    kind: str = ""  # "exact" | "wording" (similar text) | "meaning" (similar meaning)
 
 
 @runtime_checkable
