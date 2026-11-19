@@ -1,595 +1,232 @@
-# AfriLingua
+﻿# AfriLingua
 
-**Real-time AI translation for African indigenous languages.**
-English ↔ Igbo · Yoruba · Hausa — live speech, documents, and text.
+**Fast, lightweight AI translation and speech for African languages.**
+Igbo, Yoruba, Hausa and English today, with more added by configuration and community data. It runs offline on an ordinary laptop CPU.
 
-AfriLingua is an open-source project that makes language barriers disappear for speakers of African indigenous languages. Whether you are attending a conference, watching a presentation, or participating in a meeting conducted in English (or in Igbo, Yoruba, or Hausa), AfriLingua provides live transcribed translation on screen and through audio — in real time.
+Use it as a **Python library**, a **local REST API** (OpenAI-compatible), or an **MCP server** that AI agents can call. Or run the built-in **live interpretation app** for conferences, churches, clinics and classrooms.
 
-> **Use case:** An Igbo speaker at an English-language conference hears the translated speech in Igbo through their earphones while the original English transcript appears side by side on their screen. An English speaker in the same room gets the reverse — automatic translation of everything said in Igbo, Yoruba, or Hausa.
+[![CI](https://github.com/fegig/AfriLingua/actions/workflows/ci.yml/badge.svg)](https://github.com/fegig/AfriLingua/actions/workflows/ci.yml)
+![Python](https://img.shields.io/badge/python-3.11%E2%80%933.13-blue)
+![License](https://img.shields.io/badge/code-MIT-green)
+![Status](https://img.shields.io/badge/status-alpha-orange)
+
+```python
+import afrilingua
+
+afrilingua.translate("Good morning, everyone.", to="yoruba")
+# e.g. 'Ẹ káàárọ̀, gbogbo yín.'  (illustrative; actual output depends on the model)
+```
+
+> [!NOTE]
+> AfriLingua v2 is in **alpha**. The engine, library API and contracts are stable enough to build on; the interpretation app and community hub are under active development. Benchmarks are published as they are measured. See [Speed and accuracy](#speed-and-accuracy).
 
 ---
 
-## Features
+## Why AfriLingua
 
-| Feature | Description |
-|---|---|
-| **Live conversation** | Speak into a microphone; hear and read the translation in real time |
-| **Auto language detection** | Automatically identifies whether speech or text is English, Igbo, Yoruba, or Hausa |
-| **Document translation** | Upload `.txt`, `.pdf`, or `.docx` files and download the translated version |
-| **Text translation** | Paste or type any text and translate instantly, with optional audio playback |
-| **Bidirectional** | Translates both ways: English → native language and native → English |
-| **Offline-capable** | All models run locally on CPU — no cloud API required after setup |
-| **Fine-tunable** | Built-in data pipeline to collect open corpora and fine-tune the translation model on domain-specific data |
-| **Extensible** | Designed so any new language can be added by the community |
-
----
-
-## Supported Languages
-
-| Language | Code | ASR | TTS | Translation |
-|---|---|---|---|---|
-| English | `eng_Latn` | Whisper-small | pyttsx3 | NLLB-200 |
-| Igbo | `ibo_Latn` | MMS-1B-All | MMS-TTS | NLLB-200 |
-| Yoruba | `yor_Latn` | MMS-1B-All | MMS-TTS | NLLB-200 |
-| Hausa | `hau_Latn` | MMS-1B-All | MMS-TTS | NLLB-200 |
-
-Want to add another language? See [Adding a New Language](#adding-a-new-language).
-
----
-
-## Model Stack
-
-AfriLingua supports multiple model variants per role. The defaults are chosen for CPU compatibility. Swap any model by editing `.env` — no code changes required.
-
-### Translation — NLLB-200
-
-| Model ID | Size | Peak RAM | Speed (CPU) | Recommended For |
-|---|---|---|---|---|
-| `facebook/nllb-200-distilled-600M` ⭐ | 2.5 GB | ~4 GB | ~2 s/sentence | CPU default |
-| `facebook/nllb-200-distilled-1.3B` | 5.1 GB | ~8 GB | ~5 s/sentence | GPU / high-RAM CPU |
-| `facebook/nllb-200-3.3B` | 13 GB | ~16 GB | GPU only | Maximum accuracy |
-
-```env
-# .env
-MODEL_NLLB=facebook/nllb-200-distilled-600M
-```
-
-### ASR — English (Whisper)
-
-| Model ID | Size | Peak RAM | WER | Recommended For |
-|---|---|---|---|---|
-| `openai/whisper-tiny` | 75 MB | ~1 GB | Highest | Very low-spec CPU |
-| `openai/whisper-base` | 145 MB | ~1 GB | High | Low-spec CPU |
-| `openai/whisper-small` ⭐ | 460 MB | ~2 GB | Good | CPU default |
-| `openai/whisper-medium` | 1.5 GB | ~5 GB | Better | GPU recommended |
-| `openai/whisper-large-v3` | 3.1 GB | ~10 GB | Best | GPU |
-
-```env
-# .env
-MODEL_WHISPER=openai/whisper-small
-```
-
-### ASR — African Languages (Meta MMS)
-
-| Model ID | Size | Peak RAM | Recommended For |
-|---|---|---|---|
-| `facebook/mms-1b-all` ⭐ | ~4.0 GB | ~8 GB | Default ASR checkpoint; best coverage/accuracy |
-| `facebook/mms-1b-l1107` | ~4.0 GB | ~8 GB | ASR checkpoint for 1,100+ languages |
-| `facebook/mms-1b-fl102` | ~4.0 GB | ~8 GB | ASR checkpoint for a smaller language set |
-
-```env
-# .env
-MODEL_MMS_ASR=facebook/mms-1b-all
-```
-
-`facebook/mms-300m` is a pretrained MMS checkpoint, not a fine-tuned ASR
-checkpoint. It is useful for fine-tuning experiments, but it does not include
-the ASR adapters required by runtime speech recognition.
-
-### TTS — African Languages (Meta MMS-VITS)
-
-Each language has its own dedicated model. These are small and fast on both CPU and GPU.
-
-| Language | Model ID | Size |
+| | Typical cloud speech/translation API | AfriLingua |
 |---|---|---|
-| Igbo | `rnjema-unima/mms-tts-ibo-baseline` | ~50 MB |
-| Yoruba | `facebook/mms-tts-yor` | ~50 MB |
-| Hausa | `facebook/mms-tts-hau` | ~50 MB |
+| Runs without internet | No | **Yes**, after a one-time model download |
+| Runs on a CPU-only laptop | n/a (server-side) | **Yes**: int8 models, about 3 GB RAM target |
+| Your audio leaves the device | Yes | **No**. Data stays local unless you choose to share it |
+| Igbo / Yoruba / Hausa speech **and** text | Varies | **Yes**: speech-to-text, translation, text-to-speech |
+| Plugs into AI agents | Rarely | **Yes**: MCP server and OpenAI-compatible endpoints |
+| Improves from its users | No | **Yes**: corrections and recordings feed the next model |
+| Cost per minute | Metered | **Free** to run on your own hardware |
 
-Meta does not currently publish an official `facebook/mms-tts-ibo` checkpoint,
-so AfriLingua defaults to a public community Igbo VITS checkpoint. You can
-replace it with another compatible model by changing `MODEL_MMS_TTS_IGBO`.
+## Install
 
-### TTS — English
-
-| Engine | Notes |
-|---|---|
-| `pyttsx3` ⭐ | Fully offline, uses OS-level speech synthesis — no download required |
-| `openai/whisper` (via MMS) | Can be swapped for a neural English TTS if preferred |
-
-### Voice Activity Detection
-
-| Model | Size | Notes |
-|---|---|---|
-| `snakers4/silero-vad` ⭐ | ~5 MB | Runs on CPU in real time; detects speech boundaries |
-
-### Language Detection
-
-| Library | Notes |
-|---|---|
-| `lingua-language-detector` ⭐ | Offline; English + Yoruba via ML model; Igbo + Hausa via word-list heuristic |
-
----
-
-## Hardware & Device Configuration
-
-Set `DEVICE` in `.env` to control where models run:
-
-```env
-# Options: auto | cpu | cuda
-DEVICE=auto
-
-# Options: auto | float32 | float16
-TORCH_DTYPE=auto
-```
-
-| Value | Behaviour |
-|---|---|
-| `auto` | Detects CUDA at startup. Uses GPU if available, falls back to CPU. |
-| `cpu` | Forces CPU regardless of hardware. Safe on any machine. |
-| `cuda` | Forces GPU. Warns and falls back to CPU if CUDA is unavailable. |
-
-| `TORCH_DTYPE` | Behaviour |
-|---|---|
-| `auto` | `float16` on GPU (2× faster, half the VRAM); `float32` on CPU |
-| `float32` | Full precision — always safe, higher memory usage |
-| `float16` | Half precision — GPU only; do not use on CPU |
-
-For NVIDIA GPUs on Windows, PyTorch must be the CUDA build. If the app says
-`CUDA unavailable` while Device Manager shows an NVIDIA card, reinstall the CUDA
-wheels with:
-
-```powershell
-python -m pip install --upgrade --force-reinstall --no-deps torch==2.11.0+cu128 --index-url https://download.pytorch.org/whl/cu128
-python -m pip install --upgrade --force-reinstall --no-deps torchaudio==2.11.0+cu128 --index-url https://download.pytorch.org/whl/cu128
-```
-
-Then verify from the project folder:
-
-```powershell
-python -c "import torch; print(torch.__version__, torch.version.cuda, torch.cuda.is_available())"
-```
-
-### Choosing a hardware profile
-
-| Profile | Recommended settings | Expected RAM | Translation speed |
-|---|---|---|---|
-| Low-spec laptop (no GPU) | `DEVICE=cpu`, `MODEL_NLLB=…-600M`, `MODEL_WHISPER=…-base` | ~6 GB | ~3–5 s/sentence |
-| Standard laptop / desktop | `DEVICE=auto`, `MODEL_NLLB=…-600M`, `MODEL_WHISPER=…-small` | ~6–8 GB | ~1–3 s/sentence |
-| GPU workstation (8 GB VRAM) | `DEVICE=cuda`, `MODEL_NLLB=…-1.3B`, `MODEL_WHISPER=…-medium` | ~8 GB VRAM | <1 s/sentence |
-| GPU workstation (24 GB VRAM) | `DEVICE=cuda`, `MODEL_NLLB=…-3.3B`, `MODEL_WHISPER=…-large-v3` | ~20 GB VRAM | <0.5 s/sentence |
-
----
-
-## Deployment Modes
-
-Set `DEPLOYMENT_MODE` in `.env`:
-
-```env
-# Options: web | desktop
-DEPLOYMENT_MODE=web
-```
-
-### Web Application (default)
-
-The default mode. A Gradio browser UI is served alongside a FastAPI backend. Accessible from any browser on the local network — ideal for conference rooms, shared workstations, or cloud hosting.
+> Not on PyPI yet. Install from GitHub:
 
 ```bash
-# Start the web UI
-python ui/app.py
-# → http://localhost:7860
-
-# Or start only the API backend
-uvicorn api.main:app --host 127.0.0.1 --port 8000
-# → http://127.0.0.1:8000/docs
+pip install "afrilingua[all] @ git+https://github.com/fegig/AfriLingua.git@dev"
 ```
 
-**When to use:** shared environments, multi-user setups, browser-based access, server deployment, VS Code / browser plugin integration.
+Extras: `fast` (int8 CPU backends: CTranslate2, faster-whisper, ONNX), `server` (REST and MCP), `audio` (microphone), `documents` (DOCX/PDF), `all` (everything above), `train` (fine-tuning).
 
-**To expose on your local network:**
-```env
-# .env
-API_HOST=0.0.0.0
-```
+Requirements: Python 3.11–3.13, about 3 GB free RAM, 2–3 GB disk for models. A GPU is optional; it is used automatically when present.
 
-### Desktop Standalone Application
-
-A self-contained native desktop application built with PyQt6. No browser required. Suitable for offline use on a single machine. **Minimises to the system tray** and runs as a background process — right-click the tray icon to start/stop interpretation or restore the window.
-
-**Additional dependencies:**
-```bash
-pip install PyQt6 pyinstaller
-```
-
-**Run directly:**
-```bash
-python ui/desktop_app.py
-```
-
-The desktop app provides the same four surfaces as the web UI:
-
-| Tab | Description |
-|---|---|
-| 🎙️ Live Interpretation | Simultaneous interpretation — mic → translated audio + live scrolling transcript |
-| ✍️ Text Translation | Side-by-side input/output with optional TTS playback |
-| 📄 Document Translation | Browse for `.txt` / `.pdf` / `.docx`, progress bar, save translated file |
-| ⚙️ Settings | Device/GPU info, VAD chunk interval slider, model info |
-
-**System tray behaviour:**
-- Clicking **X** hides the window to the tray — the process keeps running
-- Right-click the tray icon → **Start Interpretation**, **Stop**, **Show Window**, or **Quit**
-- Left-click the tray icon → restore window
-
-**Package as a standalone executable:**
-```bash
-# Windows (.exe — no Python required on target machine)
-pyinstaller --onefile --windowed --name AfriLingua ui/desktop_app.py
-
-# macOS (.app bundle)
-pyinstaller --onefile --windowed --name AfriLingua ui/desktop_app.py
-
-# Linux (ELF binary)
-pyinstaller --onefile --name AfriLingua ui/desktop_app.py
-```
-
-The packaged executable is output to `dist/AfriLingua`. Models are downloaded on first launch and cached in `models/cache/`.
-
-**When to use:** conference interpreters, field workers, fully offline environments, or distributing AfriLingua as a standalone product without requiring a browser.
-
-### Browser Extension / Plugin
-
-The FastAPI WebSocket endpoint (`ws://127.0.0.1:8000/translate/stream`) can power a browser extension that overlays translated subtitles on top of any web meeting (Google Meet, Zoom web, Teams web). The extension streams mic audio to the local API and renders text on screen.
-
-Extension development is on the roadmap. The API contract is stable and documented at `http://127.0.0.1:8000/docs`.
-
----
-
-## Project Structure
-
-```
-afrilingua/
-├── src/
-│   ├── config.py              # Centralised config (reads .env)
-│   ├── translation/
-│   │   ├── engine.py          # NLLB TranslationEngine
-│   │   └── finetune.py        # Fine-tuning script (Seq2SeqTrainer)
-│   ├── asr/
-│   │   ├── whisper_asr.py     # Whisper ASR (English)
-│   │   ├── mms_asr.py         # Meta MMS ASR (African languages)
-│   │   ├── vad.py             # Silero voice activity detection
-│   │   └── audio_capture.py   # Microphone capture
-│   ├── tts/
-│   │   ├── mms_tts.py         # Meta MMS TTS (African languages)
-│   │   ├── english_tts.py     # pyttsx3 TTS (English)
-│   │   └── audio_player.py    # Async audio playback queue
-│   ├── detection/
-│   │   └── lang_detector.py   # Lingua language detector
-│   ├── pipeline/
-│   │   └── realtime_pipeline.py  # End-to-end orchestration
-│   └── document/
-│       ├── reader.py          # TXT / PDF / DOCX reader
-│       └── translator.py      # Document translation
-├── data/
-│   ├── collect_data.py        # Download open corpora
-│   ├── preprocess.py          # Clean, filter, split datasets
-│   ├── raw/                   # Downloaded corpus files
-│   ├── processed/             # Cleaned train/val/test JSONL
-│   └── finetuned/             # Fine-tuned model checkpoints
-├── api/
-│   └── main.py                # FastAPI REST + WebSocket backend
-├── ui/
-│   └── app.py                 # Gradio web UI (3 tabs)
-├── tests/
-│   └── test_translation.py    # Round-trip translation tests
-├── models/
-│   └── cache/                 # HuggingFace model cache
-├── .env                       # Environment configuration
-├── pyproject.toml
-└── requirements.txt
-```
-
----
-
-## Installation
-
-**Requirements:** Python 3.10 or higher.
+Download models once (then work fully offline):
 
 ```bash
-# 1. Clone the repository
-git clone https://github.com/your-username/afrilingua.git
-cd afrilingua
-
-# 2. Create and activate a virtual environment (recommended)
-python -m venv .venv
-# Windows:
-.venv\Scripts\activate
-# macOS / Linux:
-source .venv/bin/activate
-
-# 3. Install all dependencies
-pip install -r requirements.txt
+afrilingua models pull --langs igbo,yoruba,hausa
 ```
 
-Models are downloaded automatically from HuggingFace on first use and cached to `models/cache/`. Total download is approximately 7–8 GB with the default ASR checkpoint.
+## Use it
 
----
+### 1. As a Python library
 
-## Quick Start
+```python
+import afrilingua
 
-### Web UI (recommended)
+afrilingua.translate("Where is the clinic?", to="hausa")                 # auto-detects the source
+afrilingua.translate(["Thank you", "Welcome"], to="igbo", source="english")
+afrilingua.translate(long_text, to="yoruba", mode="document")            # beam search for higher quality
 
-```bash
-python ui/app.py
+text  = afrilingua.transcribe(audio, lang="yoruba")   # mono float32, 16 kHz
+voice = afrilingua.speak("Ndewo", lang="igbo")        # SpeechAudio(waveform, sample_rate)
+
+afrilingua.languages()                                # what is installed and what each language supports
 ```
 
-Open `http://localhost:7860` in your browser. Three tabs are available:
+Need control over backends, the translation memory or live streaming? Use the engine directly:
 
-- **Live Conversation** — select your language, click the microphone, speak. Translation appears as text and plays as audio.
-- **Document Translation** — upload a `.txt`, `.pdf`, or `.docx` file and download the translated version.
-- **Text Translation** — type or paste any text, choose source and target languages, translate.
+```python
+from afrilingua.engine import build_engine
 
-### API Server
-
-```bash
-uvicorn api.main:app --host 127.0.0.1 --port 8000
+engine = build_engine()
+result = engine.translate_one("Good morning", "english", "yoruba")
+result.text, result.origin, result.latency_ms   # origin: "tm_exact" | "cache" | "mt" | "mt_tm_assisted"
 ```
 
-API documentation is available at `http://127.0.0.1:8000/docs`.
+### 2. As a local API (OpenAI-compatible)
 
-**Translate text (HTTP):**
 ```bash
-curl -X POST http://127.0.0.1:8000/translate/text \
+afrilingua serve            # http://127.0.0.1:8000  (docs at /docs)
+```
+
+```bash
+curl -X POST http://127.0.0.1:8000/api/v1/translate \
   -H "Content-Type: application/json" \
-  -d '{"text": "Good morning everyone", "tgt_lang": "igbo"}'
+  -d '{"text": "Good morning", "tgt_lang": "igbo"}'
 ```
 
-**Translate a document:**
-```bash
-curl -X POST http://127.0.0.1:8000/translate/document \
-  -F "file=@speech.txt" \
-  -F "tgt_lang=yoruba"
+Apps already written for OpenAI or Whisper audio work by changing the base URL:
+
+```python
+from openai import OpenAI
+
+client = OpenAI(base_url="http://127.0.0.1:8000/v1", api_key="local")
+client.audio.transcriptions.create(model="afrilingua", file=open("sermon.wav", "rb"), language="yo")
 ```
 
-**Real-time streaming (WebSocket):**
-Connect to `ws://127.0.0.1:8000/translate/stream`, send a JSON config first:
+Full contract: [docs/api-contract.md](docs/api-contract.md).
+
+### 3. As an MCP server for AI agents
+
 ```json
-{"src_lang": "english", "tgt_lang": "hausa", "audio_output": true}
-```
-Then stream raw float32 PCM audio frames (16 kHz, mono). The server responds with:
-```json
-{"original": "...", "translated": "...", "audio_b64": "..."}
+{ "mcpServers": { "afrilingua": { "command": "afrilingua", "args": ["mcp"] } } }
 ```
 
----
+Agents get tools such as `translate_text`, `transcribe_audio`, `synthesize_speech`, `translate_speech`, `search_translation_memory` and `create_live_room`. All of them run locally. See [docs/mcp.md](docs/mcp.md).
 
-## Fine-Tuning on Domain Data
-
-The base NLLB-200 model already supports all three languages. Fine-tuning on open corpora (FLORES-200, OPUS-100, Tatoeba) can further improve quality for specific domains like conference speech.
+### 4. Live interpretation app
 
 ```bash
-# Step 1: Download open parallel corpora (~30 min, requires internet)
-python data/collect_data.py
-
-# Step 2: Clean, deduplicate and split into train/val/test
-python data/preprocess.py
-
-# Step 3a: Quick smoke test (500 samples, ~10 min on CPU)
-python src/translation/finetune.py --max_train_samples 500
-
-# Step 3b: Full fine-tuning (all collected data, several hours on CPU)
-python src/translation/finetune.py
+afrilingua serve --lan      # set API_KEYS first when exposing on a network
 ```
 
-The fine-tuned checkpoint is saved to `data/finetuned/nllb-afrilingua/`. The `TranslationEngine` automatically loads it on next startup if it exists.
+Open the web app, create a room and share the QR code. Listeners pick their language on their phones and get live captions and audio. Projector mode shows large two-language captions.
 
----
+## Speed and accuracy
 
-## Running Tests
+These are the two things we optimise for and measure on every release. **We do not publish a number we cannot reproduce.** Run `afrilingua bench` on your own machine.
+
+**How it stays fast on a CPU**
+
+- **int8 inference everywhere it matters.** Translation runs on CTranslate2, English speech recognition on faster-whisper, and voice/TTS on ONNX Runtime.
+- **Translation memory with vector search.** Previously approved translations come back in about a millisecond, before any model runs. Repeated phrases (agendas, liturgy, speaker names, medical terms) are instant and consistent.
+- **One shared model manager.** Every request, room and agent call reuses the same loaded models. Models load lazily and idle ones are evicted.
+- **Streaming pipeline.** Voice activity detection cuts speech at natural pauses, and captions are never blocked by speech synthesis.
+
+**Targets for a modern 8-core laptop CPU** (measured results will replace this table in [docs/benchmarks.md](docs/benchmarks.md)):
+
+| Stage | Target |
+|---|---|
+| Translation, one sentence (int8, greedy) | 150–400 ms |
+| Translation memory hit | under 5 ms |
+| End of speech → caption on screen | about 1–1.5 s |
+| End of speech → translated audio | about 1.5–2.5 s |
+| RAM with 4 languages loaded | about 2.5–3.5 GB |
+
+**How accuracy improves**
+
+- Strong open baselines: Meta NLLB-200 for translation, MMS for African-language speech, Whisper for English.
+- **Community corrections become approved translation-memory entries immediately**, and become training data for the next model pack.
+- Fine-tuning (LoRA for translation, adapters for speech) runs on community data, with an **evaluation gate**: a new model ships only if it beats the current one on held-out data.
+- Published per release: chrF++ / BLEU on FLORES-200 devtest and WER on FLEURS, per language pair. FLORES is never used for training.
+
+## Languages
+
+| Language | Translate | Speech → text | Text → speech |
+|---|---|---|---|
+| English | ✓ | ✓ | ✓ |
+| Igbo | ✓ | ✓ | ✓ |
+| Yoruba | ✓ | ✓ | ✓ |
+| Hausa | ✓ | ✓ | ✓ |
+
+Add a language without code changes. Any language covered by NLLB-200 and MMS (hundreds of them) can be registered:
 
 ```bash
-pytest tests/ -v
+AFRILINGUA_EXTRA_LANGUAGES='[{"name":"swahili","nllb_code":"swh_Latn","mms_asr_code":"swh","mms_tts_model":"facebook/mms-tts-swh","aliases":["sw"]}]'
 ```
 
-The test suite covers:
-- Round-trip translation for all three language pairs
-- Batch translation
-- Same-language passthrough
-- Empty string handling
-- Unsupported language error
+## Help train it
 
----
+Pre-trained models only go so far for African languages, especially with accents, dialects and tone. The community hub in the app lets speakers:
+
+- translate prompt sentences and correct machine output,
+- record their voice, tagged with dialect and region (for example Ọ̀yọ́, Ìjẹ̀bú, Owerri, Onitsha, Kano, Sokoto),
+- review other people's contributions (two approvals publish an entry).
+
+Contributions are licensed **CC-BY-4.0** by default (CC0 optional), are credited, and stay on your device until you choose to share them. Voice recordings are never used for voice cloning without a separate opt-in. See [docs/community.md](docs/community.md).
 
 ## Configuration
 
-All settings live in `.env` at the project root. Copy `.env.example` to `.env` and edit as needed. No source code changes are required.
+Everything is optional and set through environment variables or `.env`; see [.env.example](.env.example). Common ones:
 
-```env
-# ── Device ──────────────────────────────────────────────────────────────────
-DEVICE=auto          # auto | cpu | cuda
-TORCH_DTYPE=auto     # auto | float32 | float16
+| Variable | Default | Purpose |
+|---|---|---|
+| `AFRILINGUA_PROFILE` | `auto` | `cpu-lite` (≤8 GB RAM), `cpu-standard` or `gpu` |
+| `DEVICE` | `auto` | `cpu` or `cuda` |
+| `AFRILINGUA_OFFLINE` | `0` | `1` = never touch the network |
+| `API_KEYS` | empty | Required before exposing the server on a network |
+| `MODEL_NLLB` | from profile | Swap the translation model |
 
-# ── Deployment ──────────────────────────────────────────────────────────────
-DEPLOYMENT_MODE=web  # web | desktop
+## Architecture
 
-# ── Models (swap to upgrade quality or reduce memory) ───────────────────────
-MODEL_NLLB=facebook/nllb-200-distilled-600M
-MODEL_WHISPER=openai/whisper-small
-MODEL_MMS_ASR=facebook/mms-1b-all
-MODEL_MMS_TTS_IGBO=rnjema-unima/mms-tts-ibo-baseline
-MODEL_MMS_TTS_YORUBA=facebook/mms-tts-yor
-MODEL_MMS_TTS_HAUSA=facebook/mms-tts-hau
-
-# ── Paths ────────────────────────────────────────────────────────────────────
-HF_CACHE=./models/cache
-FINETUNED_MODEL_DIR=./data/finetuned/nllb-afrilingua
-
-# ── Audio ────────────────────────────────────────────────────────────────────
-SAMPLE_RATE=16000
-VAD_THRESHOLD=0.5
-
-# ── API / UI ─────────────────────────────────────────────────────────────────
-API_HOST=127.0.0.1
-API_PORT=8000
-GRADIO_PORT=7860
+```
+afrilingua/
+  core/        settings, hardware profiles, language registry
+  backends/    CTranslate2 / Transformers MT, faster-whisper & MMS ASR, MMS TTS, VAD, language ID
+  models/      shared model manager (lazy loading, per-model locks)
+  engine.py    facade: normalize → cache → translation memory → MT; ASR; TTS
+  pipeline/    streaming interpretation sessions
+  tm/          translation memory and vector index
+  contrib/     community contributions, review, export
+  api/  mcp/   REST, WebSocket rooms, OpenAI-compatible routes, MCP server
+web/           React app: interpretation, translation, community hub
 ```
 
-See [Hardware & Device Configuration](#hardware--device-configuration) and [Deployment Modes](#deployment-modes) for full details on each option.
+Details: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
----
+## Licensing
 
-## Config-Only Language Expansion
-
-AfriLingua now has a central language registry in `src/languages.py`. The built-in
-languages still work out of the box, and additional NLLB/MMS-backed languages can
-be added through configuration:
-
-```env
-LANGUAGE_REGISTRY_FILE=./languages.json
-# or:
-AFRILINGUA_EXTRA_LANGUAGES=[{"name":"swahili","nllb_code":"swh_Latn","mms_asr_code":"swh","mms_tts_model":"facebook/mms-tts-swh","aliases":["kiswahili"],"detection_words":["habari","asante"]}]
-```
-
-When a configured language is selected, the relevant Hugging Face model is
-downloaded automatically on first use and cached under `models/cache/`. Use
-`PRELOAD_MODE=adaptive` for broad hardware compatibility, `PRELOAD_MODE=all` to
-eagerly load every configured model, or `PRELOAD_MODE=minimal` for the lightest
-startup on low-memory machines. On 4-7 GB GPUs, adaptive mode keeps the
-translation model hot and lazy-loads speech/TTS so the app avoids exhausting
-VRAM at startup.
-
-## Adding a New Language
-
-AfriLingua is designed to be extended. To add a new language (e.g. Swahili):
-
-**1. Check NLLB and MMS support**
-
-Verify the language has an NLLB code at [NLLB supported languages](https://github.com/facebookresearch/flores/blob/main/flores200/README.md) and an MMS ASR/TTS model at [MMS model list](https://dl.fbaipublicfiles.com/mms/misc/language_coverage_mms.html).
-
-**2. Add the language code**
-
-In `src/translation/engine.py`, add to `LANG_CODES`:
-```python
-LANG_CODES = {
-    ...
-    "swahili": "swh_Latn",   # add this line
-}
-```
-
-**3. Add MMS ASR support**
-
-In `src/asr/mms_asr.py`, add to `MMS_LANG_MAP`:
-```python
-MMS_LANG_MAP = {
-    ...
-    "swahili": "swh",   # MMS language tag
-}
-```
-
-**4. Add MMS TTS support**
-
-In `.env` and `src/config.py`, add the TTS model ID:
-```env
-MODEL_MMS_TTS_SWAHILI=facebook/mms-tts-swh
-```
-
-Then in `src/tts/mms_tts.py`, add to `_LANG_TO_MODEL_ID`:
-```python
-_LANG_TO_MODEL_ID = {
-    ...
-    "swahili": MODEL_MMS_TTS_SWAHILI,
-}
-```
-
-**5. Add to lingua detection**
-
-In `src/detection/lang_detector.py`, add `Language.SWAHILI` to `_SUPPORTED` and `_LINGUA_TO_NAME`.
-
-**6. Contribute training data**
-
-Add a new corpus collector function in `data/collect_data.py` following the existing pattern, then open a pull request.
-
----
+- **Code**: MIT.
+- **Models**: AfriLingua downloads third-party models with their own licenses. **NLLB-200 and MMS are CC-BY-NC 4.0 (non-commercial).** Whisper is MIT. If you plan commercial use, review these licenses. A commercial-friendly model pack built on Apache-2.0 models is on the roadmap.
+- **Community data**: CC-BY-4.0 by default.
 
 ## Contributing
 
-Contributions are very welcome. AfriLingua exists to serve communities that have historically been underrepresented in AI and language technology. Every improvement — whether a bug fix, a new language, better training data, or UI polish — makes a real difference.
+Bug reports, language data, benchmarks on your hardware and code are all welcome. See [CONTRIBUTING.md](CONTRIBUTING.md). Quick dev setup:
 
-### How to contribute
-
-1. Fork the repository on GitHub
-2. Create a feature branch: `git checkout -b feature/add-swahili`
-3. Make your changes and add tests where applicable
-4. Ensure all tests pass: `pytest tests/ -v`
-5. Open a pull request with a clear description of what you changed and why
-
-### What we especially need
-
-- **Training data** — Parallel sentence pairs for any African language (see `data/collect_data.py` for the pattern to follow)
-- **New languages** — Any language supported by NLLB-200 and Meta MMS can be added (see [Adding a New Language](#adding-a-new-language))
-- **Domain-specific corpora** — Medical, legal, news, and conference speech data in African languages
-- **ASR improvements** — Better speech recognition for low-resource languages
-- **TTS quality** — Naturalness improvements for synthesised African language speech
-- **UI/UX** — Accessibility, mobile layout, additional display modes
-- **Documentation** — Translations of this README into Igbo, Yoruba, and Hausa
-
-### Code style
-
-- Python 3.10+, type hints preferred
-- Follow the existing module structure — one concern per file
-- No external API calls from core modules (keep it offline-capable)
-- Add a test for any new translation language pair
-
-### Reporting issues
-
-Open a GitHub issue and include:
-- Your OS and Python version
-- The exact command you ran
-- The full error message or unexpected behaviour
-
----
+```bash
+git clone https://github.com/fegig/AfriLingua.git && cd AfriLingua
+pip install -e ".[dev]"
+pytest -q                      # fast tests, no model downloads
+pytest -m models               # real-model tests (downloads models)
+pnpm --dir web install && pnpm --dir web dev
+```
 
 ## Roadmap
 
-- [ ] React/TypeScript production frontend with conference-room layout
-- [ ] ONNX export + INT8 quantization for low-power devices
-- [x] Desktop app — `ui/desktop_app.py` with PyQt6 + system tray + PyInstaller packaging (Windows / macOS / Linux)
-- [ ] Browser extension — subtitle overlay for web meetings (Google Meet, Zoom, Teams)
-- [ ] Mobile app (React Native / Flutter)
-- [ ] Speaker diarization — label who is speaking in multi-speaker sessions
-- [ ] Yoruba tonal marking improvement
-- [ ] Igbo dialect handling (Standard Igbo vs. regional variants)
-- [ ] More languages: Swahili, Amharic, Twi, Zulu, Wolof, Fula, and more
-
----
-
-## License
-
-This project is released under the **MIT License**. You are free to use, modify, and distribute it. See `LICENSE` for full terms.
-
-The underlying AI models each have their own licenses:
-- Meta NLLB-200: [CC-BY-NC 4.0](https://creativecommons.org/licenses/by-nc/4.0/)
-- Meta MMS: [CC-BY-NC 4.0](https://creativecommons.org/licenses/by-nc/4.0/)
-- OpenAI Whisper: [MIT License](https://github.com/openai/whisper/blob/main/LICENSE)
-
-Please review the model licenses before using this project in a commercial product.
-
----
+- Measured benchmarks per release, for CPU-lite and GPU profiles
+- Signed, versioned model packs (`afrilingua pull yoruba`), including domain packs (medical, legal, faith)
+- Commercial-friendly model pack (Omnilingual ASR, MADLAD-400)
+- Desktop installer for Windows and macOS
+- More languages: Swahili, Pidgin, Twi, Amharic, Zulu, Fula
+- Code-switching (English mixed with Yoruba, Igbo or Hausa in one sentence)
 
 ## Acknowledgements
 
-- [Meta AI — NLLB-200](https://ai.meta.com/research/no-language-left-behind/) for multilingual translation
-- [Meta AI — MMS](https://ai.meta.com/blog/multilingual-model-speech-recognition/) for speech recognition and synthesis across 1,100+ languages
-- [OpenAI — Whisper](https://github.com/openai/whisper) for robust English speech recognition
-- [Silero VAD](https://github.com/snakers4/silero-vad) for lightweight voice activity detection
-- [OPUS corpora](https://opus.nlpl.eu/) and [FLORES-200](https://github.com/facebookresearch/flores) for open parallel data
-- The Igbo, Yoruba, and Hausa communities whose languages this project is built to serve
+Meta AI (NLLB-200, MMS), OpenAI (Whisper), the CTranslate2, faster-whisper and Silero VAD projects, the Masakhane, NaijaVoices and Common Voice communities, and the Igbo, Yoruba and Hausa speakers this project exists to serve.
