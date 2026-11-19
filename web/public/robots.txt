@@ -1,0 +1,5 @@
+User-agent: *
+Allow: /
+
+# Replace the host below with the real production origin (see src/lib/site.ts).
+Sitemap: https://afrilingua.dev/sitemap.xml

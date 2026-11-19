@@ -1,6 +1,6 @@
 """
 src/translation/engine.py
-Core translation engine using Meta NLLB-200 (CPU-only, distilled-600M).
+Core translation engine using Meta NLLB-200.
 
 Supported language pairs (bidirectional):
     English  ↔  Igbo
@@ -10,29 +10,31 @@ Supported language pairs (bidirectional):
 from __future__ import annotations
 
 import logging
-from pathlib import Path
 from typing import List, Optional
 
 import torch
-from transformers import AutoModelForSeq2SeqLM, AutoTokenizer, pipeline
+from transformers import AutoModelForSeq2SeqLM, AutoTokenizer
 
-from src.config import DEVICE, FINETUNED_MODEL_DIR, HF_CACHE, MODEL_NLLB
-from src.hf_compat import fp32_dtype_kwargs
+from src.config import (
+    DEVICE,
+    FINETUNED_MODEL_DIR,
+    HF_CACHE,
+    MODEL_NLLB,
+    TORCH_DTYPE,
+)
+from src.hf_compat import dtype_name_kwargs
+from src.languages import (
+    CODE_TO_LANG,
+    LANG_CODES,
+    SUPPORTED_LANGUAGES,
+    normalize_language,
+)
 
 logger = logging.getLogger(__name__)
 
-# NLLB language codes for the four supported languages
-LANG_CODES: dict[str, str] = {
-    "english": "eng_Latn",
-    "igbo":    "ibo_Latn",
-    "yoruba":  "yor_Latn",
-    "hausa":   "hau_Latn",
-}
 
 # Inverse lookup: NLLB code → friendly name
-CODE_TO_LANG: dict[str, str] = {v: k for k, v in LANG_CODES.items()}
 
-SUPPORTED_LANGUAGES = list(LANG_CODES.keys())
 
 
 def _resolve_model_path() -> str:
@@ -59,6 +61,7 @@ class TranslationEngine:
         self._tokenizer: Optional[AutoTokenizer] = None
         self._model: Optional[AutoModelForSeq2SeqLM] = None
         self._model_path: Optional[str] = None
+        self._device: str = DEVICE
 
     # ──────────────────────────────────────────────────────────────────────────
     # Private helpers
@@ -82,23 +85,29 @@ class TranslationEngine:
         self._model = AutoModelForSeq2SeqLM.from_pretrained(
             path,
             cache_dir=str(HF_CACHE),
-            **fp32_dtype_kwargs(),
+            **dtype_name_kwargs(TORCH_DTYPE),
         )
+        try:
+            self._model.to(DEVICE)
+            self._device = DEVICE
+        except RuntimeError as exc:
+            if DEVICE == "cuda" and "out of memory" in str(exc).lower():
+                logger.warning("CUDA ran out of memory for NLLB; falling back to CPU.")
+                torch.cuda.empty_cache()
+                self._model.to(device="cpu", dtype=torch.float32)
+                self._device = "cpu"
+            else:
+                raise
         self._model.eval()
         logger.info("NLLB model ready.")
 
     def _get_lang_code(self, lang: str) -> str:
         """Normalise language name and return the NLLB language code."""
-        lang_lower = lang.strip().lower()
-        if lang_lower in LANG_CODES:
-            return LANG_CODES[lang_lower]
-        # Accept NLLB codes passed directly (e.g. "eng_Latn")
-        if lang_lower in CODE_TO_LANG:
-            return lang_lower
-        raise ValueError(
-            f"Unsupported language: '{lang}'. "
-            f"Choose from: {SUPPORTED_LANGUAGES} or a valid NLLB code."
-        )
+        lang_key = lang.strip()
+        code_key = lang_key.lower()
+        if code_key in CODE_TO_LANG:
+            return LANG_CODES[CODE_TO_LANG[code_key]]
+        return LANG_CODES[normalize_language(lang_key)]
 
     # ──────────────────────────────────────────────────────────────────────────
     # Public API
@@ -160,6 +169,7 @@ class TranslationEngine:
             truncation=True,
             max_length=max_length,
         )
+        inputs = {key: value.to(self._device) for key, value in inputs.items()}
 
         # Force target language BOS token
         forced_bos_id = self._tokenizer.convert_tokens_to_ids(tgt_code)
@@ -173,7 +183,7 @@ class TranslationEngine:
             )
 
         translations = self._tokenizer.batch_decode(
-            output_ids, skip_special_tokens=True
+            output_ids.detach().cpu(), skip_special_tokens=True
         )
         return translations
 

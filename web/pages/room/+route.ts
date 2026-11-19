@@ -1,0 +1,1 @@
+export default "/room/@id";

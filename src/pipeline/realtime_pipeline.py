@@ -64,11 +64,17 @@ class RealtimePipeline:
         engine: Optional[TranslationEngine] = None,
         mms_tts: Optional[MMSTTS] = None,
         eng_tts: Optional[EnglishTTS] = None,
+        local_playback: bool = True,
+        input_device: int | str | None = None,
+        output_device: int | str | None = None,
     ) -> None:
         self.src_lang = src_lang.lower()
         self.tgt_lang = tgt_lang.lower()
         self.on_result = on_result
         self.audio_output = audio_output
+        self.local_playback = local_playback
+        self.input_device = input_device
+        self.output_device = output_device
 
         # Accept pre-loaded singletons so that models loaded at startup are
         # reused here — avoids loading model weights a second time.
@@ -78,7 +84,7 @@ class RealtimePipeline:
         self._engine   = engine   if engine   is not None else TranslationEngine()
         self._mms_tts  = mms_tts  if mms_tts  is not None else MMSTTS()
         self._eng_tts  = eng_tts  if eng_tts  is not None else EnglishTTS()
-        self._player   = AudioPlayer()
+        self._player   = AudioPlayer(output_device=output_device)
 
         self._capture: Optional[AudioCapture] = None
         self._lock = threading.Lock()
@@ -108,11 +114,17 @@ class RealtimePipeline:
         buf.seek(0)
         return base64.b64encode(buf.read()).decode("utf-8")
 
+    def _render_tts(self, text: str, lang: str) -> str:
+        waveform, sr = self._synthesize(text, lang)
+        if self.local_playback:
+            self._player.play(waveform, sr)
+        return self._to_wav_b64(waveform, sr)
+
     # ──────────────────────────────────────────────────────────────────────────
     # Core utterance processor (called from AudioCapture callback thread)
     # ──────────────────────────────────────────────────────────────────────────
 
-    def _handle_utterance(self, audio: np.ndarray) -> None:
+    def _handle_utterance(self, audio: np.ndarray, *, wait_for_audio: bool = False) -> None:
         try:
             # 1. ASR
             original_text = self._transcribe(audio)
@@ -136,18 +148,19 @@ class RealtimePipeline:
                 tgt_lang=self.tgt_lang,
                 audio_b64=None,   # filled in below, on the TTS thread
             )
+            if wait_for_audio and self.audio_output and translated_text.strip():
+                try:
+                    result.audio_b64 = self._render_tts(translated_text, self.tgt_lang)
+                except Exception as exc:
+                    logger.error("TTS error: %s", exc, exc_info=True)
             self.on_result(result)
 
             # 4. TTS — run in a background thread so audio starts playing
             #    while the speaker continues talking (simultaneous interpretation).
-            if self.audio_output and translated_text.strip():
+            if self.audio_output and translated_text.strip() and not wait_for_audio:
                 def _tts_and_play(text: str, lang: str, r: TranslationResult) -> None:
                     try:
-                        waveform, sr = self._synthesize(text, lang)
-                        self._player.play(waveform, sr)
-                        # Back-fill audio_b64 so WebSocket clients can also
-                        # receive the audio if they poll / reconnect.
-                        r.audio_b64 = self._to_wav_b64(waveform, sr)
+                        r.audio_b64 = self._render_tts(text, lang)
                     except Exception as exc:
                         logger.error("TTS error: %s", exc, exc_info=True)
 
@@ -164,7 +177,12 @@ class RealtimePipeline:
     # Process a pre-recorded audio chunk (used by WebSocket endpoint)
     # ──────────────────────────────────────────────────────────────────────────
 
-    def process_audio_chunk(self, audio: np.ndarray) -> Optional[TranslationResult]:
+    def process_audio_chunk(
+        self,
+        audio: np.ndarray,
+        *,
+        wait_for_audio: bool = False,
+    ) -> Optional[TranslationResult]:
         """
         Synchronously process a single audio array and return the result.
         Use this when audio arrives over WebSocket (already chunked by client).
@@ -176,7 +194,7 @@ class RealtimePipeline:
 
         original_cb = self.on_result
         self.on_result = _capture
-        self._handle_utterance(audio)
+        self._handle_utterance(audio, wait_for_audio=wait_for_audio)
         self.on_result = original_cb
 
         return results[0] if results else None
@@ -191,7 +209,10 @@ class RealtimePipeline:
             if self._capture is not None:
                 return
             self._player.start()
-            self._capture = AudioCapture(on_utterance=self._handle_utterance)
+            self._capture = AudioCapture(
+                on_utterance=self._handle_utterance,
+                input_device=self.input_device,
+            )
             self._capture.start()
             logger.info("Live pipeline started: %s → %s", self.src_lang, self.tgt_lang)
 

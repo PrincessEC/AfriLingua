@@ -1,6 +1,8 @@
 # ── Core ML ──────────────────────────────────────────────────────────────────
 torch>=2.2.0
 torchaudio>=2.2.0
+# NVIDIA GPU on Windows: after installing requirements, reinstall torch and
+# torchaudio from the PyTorch CUDA index shown in README.md.
 transformers>=4.40.0
 accelerate>=0.29.0
 sentencepiece>=0.2.0

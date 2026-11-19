@@ -1,0 +1,15 @@
+# Igbo seed prompts for recording (common greetings/phrases, standard orthography).
+# Format: domain<TAB>sentence
+seed	Ụtụtụ ọma.
+seed	Ehihie ọma.
+seed	Mgbede ọma.
+seed	Ndewo.
+seed	Kedu?
+seed	Adị m mma.
+seed	Daalụ.
+seed	Biko.
+seed	Nnọọ.
+seed	Ka ọ dị.
+seed	Gịnị bụ aha gị?
+seed	Ee.
+seed	Mba.
