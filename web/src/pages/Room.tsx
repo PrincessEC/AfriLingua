@@ -54,9 +54,10 @@ export default function Room() {
   const info = useQuery({
     queryKey: ["room", id],
     queryFn: ({ signal }) => api.room(id, signal),
-    retry: (n, e) => isOffline(e) && n < 30,
-    retryDelay: (n) => Math.min(8000, 800 * 2 ** n),
-    refetchInterval: 20_000,
+    retry: false,
+    // Poll fast while unreachable so a listener joins as soon as the network is back.
+    refetchInterval: (q) => (q.state.data ? 20_000 : q.state.error && !isOffline(q.state.error) ? 15_000 : 4_000),
+    refetchIntervalInBackground: true,
   });
 
   useEffect(() => {
