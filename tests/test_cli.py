@@ -46,7 +46,10 @@ def test_invalid_args_exit():
 
 
 def test_serve_lan_warns_and_binds_all_interfaces(monkeypatch, capsys):
+    for key in ("API_HOST", "API_PORT", cli.SERVE_WEB_ENV, cli.LAN_PORT_ENV):
+        monkeypatch.delenv(key, raising=False)
     calls = {}
+    import os
     import uvicorn
 
     monkeypatch.setattr(uvicorn, "run", lambda *a, **kw: calls.update(args=a, kwargs=kw))
@@ -55,11 +58,7 @@ def test_serve_lan_warns_and_binds_all_interfaces(monkeypatch, capsys):
     assert calls["kwargs"]["factory"] is True and calls["args"] == ("afrilingua.cli:app_factory",)
     err = capsys.readouterr().err
     assert "WARNING" in err and "0.0.0.0" in err
-    import os
-
     assert os.environ[cli.SERVE_WEB_ENV] == "0" and os.environ[cli.LAN_PORT_ENV] == "8765"
-    for key in ("API_HOST", "API_PORT", cli.SERVE_WEB_ENV, cli.LAN_PORT_ENV):
-        monkeypatch.delenv(key, raising=False)
 
 
 def test_app_factory_honours_env(monkeypatch):

@@ -44,9 +44,9 @@ class Settings(BaseSettings):
     # ── Hardware ────────────────────────────────────────────────────────────
     device: DeviceChoice = "auto"
     torch_dtype: DtypeChoice = "auto"
-    profile: ProfileChoice = Field("auto", validation_alias="AFRILINGUA_PROFILE")
+    profile: ProfileChoice = Field(default="auto", validation_alias="AFRILINGUA_PROFILE")
     preload_mode: PreloadChoice = "adaptive"
-    cpu_threads: int = Field(0, description="0 = let backends decide")
+    cpu_threads: int = Field(default=0, description="0 = let backends decide")
 
     # ── Backends ────────────────────────────────────────────────────────────
     mt_backend: MTBackendChoice = "auto"
@@ -59,7 +59,7 @@ class Settings(BaseSettings):
     model_mms_asr: str = "facebook/mms-1b-all"
     model_mms_tts_english: str = "facebook/mms-tts-eng"
     model_embedder: str = Field(
-        "",
+        default="",
         description="Optional semantic embedder for the translation memory (e.g. sentence-transformers/LaBSE). "
         "Empty = fast built-in char n-gram vectors.",
     )
@@ -92,10 +92,10 @@ class Settings(BaseSettings):
     # ── Server ──────────────────────────────────────────────────────────────
     api_host: str = "127.0.0.1"
     api_port: int = 8000
-    api_keys: str = Field("", description="Comma-separated API keys. Empty = no auth (local use).")
+    api_keys: str = Field(default="", description="Comma-separated API keys. Empty = no auth (local use).")
     cors_origins: str = "http://localhost:5173,http://127.0.0.1:5173"
     max_upload_mb: int = 25
-    offline: bool = Field(False, validation_alias="AFRILINGUA_OFFLINE")
+    offline: bool = Field(default=False, validation_alias="AFRILINGUA_OFFLINE")
 
     @field_validator("hf_cache", "ct2_cache", "data_dir", "finetuned_model_dir", mode="after")
     @classmethod

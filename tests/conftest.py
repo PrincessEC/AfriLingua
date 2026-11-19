@@ -15,6 +15,8 @@ def isolated_settings(tmp_path, monkeypatch):
     monkeypatch.setenv("API_KEYS", "")
     monkeypatch.setenv("LANGUAGE_REGISTRY_FILE", "")
     monkeypatch.setenv("AFRILINGUA_EXTRA_LANGUAGES", "")
+    for key in ("API_HOST", "API_PORT", "AFRILINGUA_SERVE_WEB", "AFRILINGUA_LAN_PORT"):
+        monkeypatch.delenv(key, raising=False)
     from afrilingua.core import hardware, languages, settings
 
     settings.get_settings.cache_clear()

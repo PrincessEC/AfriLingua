@@ -21,8 +21,16 @@ class _JsonFormatter(logging.Formatter):
         return json.dumps(payload, ensure_ascii=False)
 
 
+class _DynamicStderrHandler(logging.StreamHandler):  # type: ignore[type-arg]
+    """Always emit to the current ``sys.stderr`` (safe across pytest ``capsys`` swaps)."""
+
+    def emit(self, record: logging.LogRecord) -> None:
+        self.stream = sys.stderr
+        super().emit(record)
+
+
 def configure_logging(level: str = "INFO", *, json_output: bool = False) -> None:
-    handler = logging.StreamHandler(sys.stderr)
+    handler = _DynamicStderrHandler()
     handler.setFormatter(
         _JsonFormatter()
         if json_output
