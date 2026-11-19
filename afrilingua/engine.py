@@ -12,6 +12,7 @@ Translation flow (per sentence)::
 from __future__ import annotations
 
 import logging
+import re
 import threading
 import time
 import unicodedata
@@ -23,6 +24,7 @@ from typing import Literal, Protocol, runtime_checkable
 import numpy as np
 
 from afrilingua.backends.base import LanguageIdentifier, SpeechAudio, Transcript
+from afrilingua.backends.text_frontend import split_sentences
 from afrilingua.core.errors import CapabilityUnavailableError, InvalidInputError
 from afrilingua.core.languages import LanguageRegistry, get_registry
 from afrilingua.core.settings import Settings, get_settings
@@ -98,22 +100,32 @@ def normalize_text(text: str) -> str:
     return " ".join(unicodedata.normalize("NFC", text).split())
 
 
+#: Sentence boundary followed by more text: worth splitting for batching and memory hits.
+_SENTENCE_HINT = re.compile(r"[.!?\u2026\u3002\uff01\uff1f][\"'\u201d\u2019)\]]*\s+\S")
+#: Segments longer than this are not cached (bounds cache memory per entry).
+_MAX_CACHED_CHARS = 2000
+
+
 class _LRU:
+    """Recent-results cache. Values are ``(text, kind)`` where kind is ``"tm"`` or ``"mt"``."""
+
     def __init__(self, capacity: int = 4096) -> None:
-        self._data: OrderedDict[tuple[str, str, str], str] = OrderedDict()
+        self._data: OrderedDict[tuple[str, str, str], tuple[str, str]] = OrderedDict()
         self._cap = capacity
         self._lock = threading.Lock()
 
-    def get(self, key: tuple[str, str, str]) -> str | None:
+    def get(self, key: tuple[str, str, str]) -> tuple[str, str] | None:
         with self._lock:
             if key in self._data:
                 self._data.move_to_end(key)
                 return self._data[key]
         return None
 
-    def put(self, key: tuple[str, str, str], value: str) -> None:
+    def put(self, key: tuple[str, str, str], value: str, kind: str = "mt") -> None:
+        if len(key[2]) > _MAX_CACHED_CHARS:
+            return
         with self._lock:
-            self._data[key] = value
+            self._data[key] = (value, kind)
             self._data.move_to_end(key)
             while len(self._data) > self._cap:
                 self._data.popitem(last=False)
@@ -121,6 +133,20 @@ class _LRU:
     def clear(self) -> None:
         with self._lock:
             self._data.clear()
+
+    def __len__(self) -> int:
+        return len(self._data)
+
+
+def _combine_origins(origins: set[str]) -> str:
+    """Origin of a multi-sentence result from the origins of its sentences."""
+    if len(origins) == 1:
+        return next(iter(origins))
+    if origins <= {"tm_exact", "cache"}:
+        return "tm_exact"
+    if "tm_exact" in origins or "mt_tm_assisted" in origins:
+        return "mt_tm_assisted"
+    return "mt"
 
 
 class AfriLinguaEngine:
@@ -139,6 +165,7 @@ class AfriLinguaEngine:
         self.tm = tm
         self.detector = detector
         self._cache = _LRU()
+        self._tm_generation: int | None = None
 
     # ── language helpers ────────────────────────────────────────────────────
     def detect_language(self, text: str) -> tuple[str, float]:
@@ -154,6 +181,20 @@ class AfriLinguaEngine:
         return (lang if lang != "unknown" else "english"), True
 
     # ── translation ─────────────────────────────────────────────────────────
+    def _segments(self, text: str) -> list[str]:
+        """Split ``text`` into sentences so each can hit memory and the rest decode as one batch."""
+        if not self.settings.mt_segment_sentences or not _SENTENCE_HINT.search(text):
+            return [text]
+        segs = [seg for seg in split_sentences(text, max_chars=400) if seg.strip()]
+        return segs or [text]
+
+    def _sync_cache_with_tm(self) -> None:
+        """Drop cached results whenever the translation memory has changed."""
+        generation = getattr(self.tm, "generation", None)
+        if generation != self._tm_generation:
+            self._cache.clear()
+            self._tm_generation = generation
+
     def translate(
         self,
         texts: Sequence[str],
@@ -167,54 +208,74 @@ class AfriLinguaEngine:
             raise InvalidInputError(
                 "translate() expects a sequence of strings; use translate_one() for a single string"
             )
+        limit = self.settings.max_text_chars
+        for t in texts:
+            if limit and len(t) > limit:
+                raise InvalidInputError(
+                    f"Text is {len(t)} characters; the limit is {limit}. "
+                    "Split it, or use document translation for long files."
+                )
         t0 = time.perf_counter()
         tgt = self.registry.normalize(tgt_lang)
         src, detected = self._resolve_src(texts, src_lang)
         norm = [normalize_text(t) for t in texts]
+        self._sync_cache_with_tm()
 
         results: list[TranslationResult | None] = [None] * len(norm)
-        pending: list[int] = []
+        plan: list[tuple[int, list[str]]] = []
+        done: dict[str, tuple[str, str]] = {}  # sentence -> (translation, origin)
+        pending: list[str] = []
+        fuzzy_hint: dict[str, bool] = {}
+        text_matches: dict[int, list[TMMatch]] = {}
+
         for i, text in enumerate(norm):
-            if not text:
-                results[i] = TranslationResult("", text, src, tgt, "passthrough", detected=detected)
-                continue
-            if src == tgt:
+            if not text or src == tgt:
                 results[i] = TranslationResult(text, text, src, tgt, "passthrough", detected=detected)
                 continue
-            cached = self._cache.get((src, tgt, text))
-            if cached is not None:
-                results[i] = TranslationResult(cached, text, src, tgt, "cache", detected=detected)
-                continue
-            matches: list[TMMatch] = []
-            if use_tm and self.tm is not None:
-                try:
-                    matches = self.tm.lookup(text, src, tgt, k=3)
-                except Exception:
-                    logger.exception("Translation memory lookup failed")
-            best = matches[0] if matches else None
-            if best and best.approved and best.score >= self.settings.tm_exact_threshold:
-                results[i] = TranslationResult(
-                    best.target, text, src, tgt, "tm_exact", detected=detected, matches=matches
-                )
-                self._cache.put((src, tgt, text), best.target)
-                continue
-            results[i] = TranslationResult("", text, src, tgt, "mt", detected=detected, matches=matches)
-            pending.append(i)
+            segments = self._segments(text)
+            plan.append((i, segments))
+            for seg in segments:
+                if seg in done or seg in fuzzy_hint:
+                    continue
+                cached = self._cache.get((src, tgt, seg))
+                if cached is not None and (use_tm or cached[1] != "tm"):
+                    done[seg] = (cached[0], "cache")
+                    continue
+                matches: list[TMMatch] = []
+                if use_tm and self.tm is not None:
+                    try:
+                        matches = self.tm.lookup(seg, src, tgt, k=3)
+                    except Exception:
+                        logger.exception("Translation memory lookup failed")
+                if len(segments) == 1:
+                    text_matches[i] = matches
+                best = matches[0] if matches else None
+                # Only an exact (normalised) match is served verbatim. A *similar* sentence's
+                # translation is not a translation of this one ("two" vs "ten" tablets).
+                if best and best.approved and best.score >= self.settings.tm_exact_threshold:
+                    done[seg] = (best.target, "tm_exact")
+                    self._cache.put((src, tgt, seg), best.target, "tm")
+                    continue
+                fuzzy_hint[seg] = bool(best and best.score >= self.settings.tm_fuzzy_threshold)
+                pending.append(seg)
 
         if pending:
             beam = self.settings.live_beam_size if mode == "live" else self.settings.document_beam_size
-            batch = [norm[i] for i in pending]
             with self.manager.use(MT_KEY) as mt:
                 outputs = mt.translate_batch(
-                    batch, src, tgt, beam_size=beam, max_length=self.settings.max_translation_tokens
+                    pending, src, tgt, beam_size=beam, max_length=self.settings.max_translation_tokens
                 )
-            for i, out in zip(pending, outputs, strict=True):
-                r = results[i]
-                assert r is not None
-                r.text = out
-                if r.matches and r.matches[0].score >= self.settings.tm_fuzzy_threshold:
-                    r.origin = "mt_tm_assisted"
-                self._cache.put((src, tgt, norm[i]), out)
+            for seg, out in zip(pending, outputs, strict=True):
+                done[seg] = (out, "mt_tm_assisted" if fuzzy_hint.get(seg) else "mt")
+                self._cache.put((src, tgt, seg), out, "mt")
+
+        for i, segments in plan:
+            parts = [done[seg] for seg in segments]
+            translated = " ".join(p[0] for p in parts if p[0])
+            origin = _combine_origins({p[1] for p in parts})
+            results[i] = TranslationResult(
+                translated, norm[i], src, tgt, origin, detected=detected, matches=text_matches.get(i, [])
+            )
 
         elapsed = (time.perf_counter() - t0) * 1000
         final = [r for r in results if r is not None]

@@ -12,6 +12,7 @@ import os
 import shutil
 import threading
 import time
+import unicodedata
 from pathlib import Path
 from typing import Any
 
@@ -59,6 +60,70 @@ def local_nllb_checkpoint(model_id: str, settings: Settings) -> Path:
             allow_patterns=["*.json", "*.model", "pytorch_model.bin*"],
             required_any=("pytorch_model.bin", "pytorch_model.bin.index.json"),
         )
+
+
+# ── Script-restricted decoding ──────────────────────────────────────────────
+# NLLB's output layer scores all 256k vocabulary entries at every step, and most of them
+# belong to scripts our languages never use (CJK, Arabic, Devanagari ...). CTranslate2 can
+# restrict decoding to a subset listed in ``vmap.txt`` inside the model directory. We keep
+# every token whose characters belong to the scripts of the registered languages, so the
+# chosen output cannot change for those languages; it only skips impossible candidates.
+VMAP_FILE = "vmap.txt"
+VMAP_TAG_FILE = "vmap.tag"
+#: NLLB script code -> Unicode character-name prefixes for that script.
+SCRIPT_NAMES: dict[str, tuple[str, ...]] = {
+    "Latn": ("LATIN",),
+    "Arab": ("ARABIC",),
+    "Ethi": ("ETHIOPIC",),
+    "Cyrl": ("CYRILLIC",),
+    "Grek": ("GREEK",),
+    "Hebr": ("HEBREW",),
+    "Deva": ("DEVANAGARI",),
+    "Tfng": ("TIFINAGH",),
+    "Nkoo": ("NKO",),
+    "Vaii": ("VAI",),
+}
+
+
+def nllb_script(code: str) -> str:
+    """``"yor_Latn"`` -> ``"Latn"``."""
+    return code.split("_", 1)[1] if "_" in code else ""
+
+
+def token_in_scripts(token: str, prefixes: tuple[str, ...]) -> bool:
+    """True if every character of a SentencePiece token is neutral or in an allowed script."""
+    for ch in token.replace("\u2581", ""):
+        if ch.isascii():
+            continue
+        cat = unicodedata.category(ch)
+        if cat == "Mn" or (cat[0] in "PSZ" and ord(ch) < 0x3000):
+            continue  # combining marks (tone marks, dots below), punctuation, symbols
+        name = unicodedata.name(ch, "")
+        if not any(name.startswith(pre) for pre in prefixes):
+            return False
+    return True
+
+
+def ensure_vocab_map(model_dir: Path, tokenizer: Any, scripts: set[str]) -> bool:
+    """Write ``vmap.txt`` for ``scripts`` into ``model_dir`` (cached). False if not applicable."""
+    if not scripts or any(sc not in SCRIPT_NAMES for sc in scripts):
+        return False
+    vocab = tokenizer.convert_ids_to_tokens(list(range(len(tokenizer))))
+    tag = f"{','.join(sorted(scripts))}|{len(vocab)}"
+    tag_file = model_dir / VMAP_TAG_FILE
+    vmap = model_dir / VMAP_FILE
+    if vmap.is_file() and tag_file.is_file() and tag_file.read_text(encoding="utf-8") == tag:
+        return True
+    prefixes = tuple(pre for sc in sorted(scripts) for pre in SCRIPT_NAMES[sc])
+    keep = set(tokenizer.all_special_tokens)
+    allowed = [t for t in vocab if t in keep or token_in_scripts(t, prefixes)]
+    tmp = vmap.with_suffix(".tmp")
+    # One line with an empty source key: these targets are always allowed.
+    tmp.write_text("\t" + " ".join(allowed) + "\n", encoding="utf-8")
+    os.replace(tmp, vmap)
+    tag_file.write_text(tag, encoding="utf-8")
+    logger.info("Vocabulary map for %s: %d of %d tokens", ",".join(sorted(scripts)), len(allowed), len(vocab))
+    return True
 
 
 def ct2_target_dir(source: str, quantization: str, settings: Settings) -> Path:
@@ -136,6 +201,7 @@ class CT2NLLBBackend:
         self.device = "cpu"
         self.compute_type = "int8"
         self.model_dir: Path | None = None
+        self._vmap_scripts: set[str] = set()
 
     # ── lifecycle ───────────────────────────────────────────────────────────
     def load(self) -> None:
@@ -152,18 +218,26 @@ class CT2NLLBBackend:
         source = resolve_mt_source(self.settings, self.model_id)
         model_dir = ensure_ct2_model(source, self.compute_type, self.settings)
         threads = self.plan.threads if self.device == "cpu" else 1
+        tok_source = model_dir if (model_dir / "tokenizer_config.json").is_file() else source
+        self._tokenizer = AutoTokenizer.from_pretrained(
+            str(tok_source),
+            cache_dir=str(self.settings.hf_cache),
+            local_files_only=bool(self.settings.offline) or Path(str(tok_source)).is_dir(),
+        )
+        self._vmap_scripts = set()
+        if self.settings.mt_vocab_restrict:
+            scripts = {nllb_script(spec.nllb_code) for spec in self.registry if spec.nllb_code}
+            try:
+                if ensure_vocab_map(model_dir, self._tokenizer, scripts):
+                    self._vmap_scripts = scripts
+            except Exception:  # never block translation on an optimisation
+                logger.exception("Could not build the vocabulary map; decoding the full vocabulary")
         self._translator = ctranslate2.Translator(
             str(model_dir),
             device=self.device,
             compute_type=self.compute_type,
             inter_threads=1,
             intra_threads=threads,
-        )
-        tok_source = model_dir if (model_dir / "tokenizer_config.json").is_file() else source
-        self._tokenizer = AutoTokenizer.from_pretrained(
-            str(tok_source),
-            cache_dir=str(self.settings.hf_cache),
-            local_files_only=bool(self.settings.offline) or Path(str(tok_source)).is_dir(),
         )
         self.model_dir = model_dir
         logger.info(
@@ -196,12 +270,14 @@ class CT2NLLBBackend:
         tok = self._tokenizer
         tok.src_lang = src_code
         sources = [tok.convert_ids_to_tokens(tok.encode(t, truncation=True, max_length=1000)) for t in texts]
+        use_vmap = bool(self._vmap_scripts) and nllb_script(tgt_code) in self._vmap_scripts
         results = self._translator.translate_batch(
             sources,
             target_prefix=[[tgt_code]] * len(sources),
             beam_size=max(1, beam_size),
             max_decoding_length=max_length,
             max_batch_size=self.max_batch_size,
+            use_vmap=use_vmap,
         )
         outputs: list[str] = []
         for res in results:

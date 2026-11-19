@@ -86,8 +86,18 @@ class Settings(BaseSettings):
     vad_preroll_s: float = 0.3
 
     # ── Translation memory ─────────────────────────────────────────────────
-    tm_exact_threshold: float = 0.97
+    #: 1.0 = serve memory verbatim only on an exact (normalised) match. Fuzzy scores are
+    #: capped below 1.0, so lowering this serves *similar* sentences' translations: unsafe.
+    tm_exact_threshold: float = 1.0
     tm_fuzzy_threshold: float = 0.80
+
+    # ── Latency ─────────────────────────────────────────────────────────────
+    #: Split multi-sentence text so known sentences hit memory and the rest decode in one batch.
+    mt_segment_sentences: bool = True
+    #: Restrict NLLB decoding to the scripts of registered languages (CTranslate2 vocab map).
+    mt_vocab_restrict: bool = True
+    #: Longest text accepted by translate(); longer input should go through document jobs.
+    max_text_chars: int = 20_000
 
     # ── Server ──────────────────────────────────────────────────────────────
     api_host: str = "127.0.0.1"

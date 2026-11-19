@@ -115,6 +115,9 @@ class TranslationMemory:
         self._indexes: dict[tuple[str, str], CharNgramIndex] = {}
         self._semantic: dict[tuple[str, str], DenseIndex] = {}
         self._closed = False
+        #: Bumped on every write (add, approve, delete). Caches built on top of the TM
+        #: (the engine's translation cache) compare it to know when to drop stale entries.
+        self.generation = 0
         with self._conn() as conn:
             conn.executescript(_SCHEMA)
 
@@ -366,6 +369,7 @@ class TranslationMemory:
             # Resolve the stored id of every item (new uuid, or the existing row on conflict).
             find = "SELECT id FROM entries WHERE src_lang=? AND tgt_lang=? AND source_norm=? AND target=?"
             ids = [conn.execute(find, (src, tgt, p.key, p.target)).fetchone()[0] for p in items]
+        self.generation += 1
         gen_set = set(gen)
         new_pairs = {i: p.key for i, p in zip(ids, items, strict=True) if i in gen_set}
         if new_pairs:
@@ -451,6 +455,7 @@ class TranslationMemory:
             cur = conn.execute("UPDATE entries SET approved=1, updated_at=? WHERE id=?", (_now(), entry_id))
             if cur.rowcount == 0:
                 raise NotFoundError(f"Translation memory entry {entry_id!r} not found")
+        self.generation += 1
         entry = self.get(entry_id)
         assert entry is not None
         return entry
@@ -462,6 +467,7 @@ class TranslationMemory:
             if row is None:
                 raise NotFoundError(f"Translation memory entry {entry_id!r} not found")
             conn.execute("DELETE FROM entries WHERE id=?", (entry_id,))
+        self.generation += 1
         pair = (row[0], row[1])
         with self._index_lock:
             if pair in self._indexes:
@@ -479,6 +485,7 @@ class TranslationMemory:
             if not rows:
                 return 0
             conn.execute("DELETE FROM entries WHERE origin=?", (origin,))
+        self.generation += 1
         by_pair: dict[tuple[str, str], list[str]] = {}
         for r in rows:
             by_pair.setdefault((r[1], r[2]), []).append(r[0])

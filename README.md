@@ -134,16 +134,19 @@ Measured 19 Nov 2026 on a Ryzen 9 5900HS laptop (8 cores), CPU only, int8, 8 thr
 | New sentence, English → Igbo | 730 ms | 1.19 s |
 | New sentence, English → Hausa | 773 ms | 1.15 s |
 | New sentence, English → Yoruba | 1.10 s | 1.63 s |
+| Five-sentence paragraph (Yoruba / Igbo / Hausa) | 1.3 / 1.1 / 1.6 s | |
 | Memory with translation loaded for three languages | 2.0 GB | |
 
 **How it stays fast**
 
-- **Most sentences never reach the model.** Conferences, clinics and churches repeat themselves. Approved translations are answered from translation memory in a fraction of a millisecond, and so are repeats within a session.
+- **Most sentences never reach the model.** Conferences, clinics and churches repeat themselves. Text is split into sentences; approved translations of exact sentences come from translation memory in a fraction of a millisecond, and so do repeats within a session. Similar-but-different sentences are never reused verbatim.
+- **New sentences are decoded together.** A paragraph's new sentences go to the model as one batch: five sentences took 1.1–1.6 s instead of 2.6–7.0 s as one block.
+- **Only the scripts you use.** Decoding is restricted to the alphabets of your configured languages, skipping most of the model's 256k-token vocabulary with identical output (6–20% faster per sentence).
 - **int8 everywhere it matters.** Translation runs on CTranslate2, English speech on faster-whisper, and voice on ONNX Runtime.
 - **One warm model manager.** Every request, room and agent shares the same loaded models. Languages load lazily and idle models are released.
 - **Greedy decoding for live speech, beam search only for documents.**
 
-**What comes next for speed:** vocabulary-restricted decoding per target language (the model's 256k-token output layer dominates CPU time), a smaller distilled student model, and published numbers for plugged-in, idle and low-end (4-core, 8 GB) machines. See [docs/benchmarks.md](docs/benchmarks.md).
+**What comes next for speed:** captions that stream word by word as they are decoded, a smaller distilled student model per language pair, and published numbers for plugged-in, idle and low-end (4-core, 8 GB) machines. See [docs/benchmarks.md](docs/benchmarks.md).
 
 ## Accuracy
 
