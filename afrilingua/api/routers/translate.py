@@ -1,27 +1,50 @@
-"""Translate and ASR routers."""
-from fastapi import APIRouter, Request, UploadFile, File, Form
-from pydantic import BaseModel
-from typing import List, Optional
+"""Text translation + language detection."""
 
-router = APIRouter(prefix="/api/v1", tags=["translate"])
+from __future__ import annotations
 
-class TranslateRequest(BaseModel):
-    texts: Optional[List[str]] = None
-    text: Optional[str] = None
-    src_lang: Optional[str] = "auto"
-    tgt_lang: str
-    mode: str = "live"
-    use_tm: bool = True
+from typing import Any
 
-@router.post("/translate")
-async def translate(req: TranslateRequest, request: Request):
-    texts = req.texts or ([req.text] if req.text else [])
-    results = request.app.state.engine.translate(
-        texts, req.src_lang, req.tgt_lang, mode=req.mode, use_tm=req.use_tm
+from fastapi import APIRouter
+from starlette.concurrency import run_in_threadpool
+
+from afrilingua.api.deps import EngineDep
+from afrilingua.api.schemas import (
+    ERROR_RESPONSES,
+    DetectRequest,
+    DetectResponse,
+    TranslateRequest,
+    TranslateResponse,
+)
+
+router = APIRouter(prefix="/api/v1", tags=["translation"])
+
+
+@router.post(
+    "/translate",
+    response_model=TranslateResponse,
+    responses=ERROR_RESPONSES,
+    summary="Translate one text or a batch",
+    description="Normalize → cache → translation memory → machine translation. "
+    "`src_lang` may be `auto`; results report `detected: true` when the source was detected.",
+)
+async def translate(body: TranslateRequest, engine: EngineDep) -> dict[str, Any]:
+    texts = body.all_texts()
+    src = body.src_lang or "auto"
+    engine.registry.normalize(body.tgt_lang)  # fail fast (400) before touching models
+    if src.lower() not in {"auto", "auto-detect"}:
+        engine.registry.normalize(src)
+    results = await run_in_threadpool(
+        engine.translate, texts, src, body.tgt_lang, mode=body.mode, use_tm=body.use_tm
     )
     return {"results": [r.to_dict() for r in results]}
 
-@router.post("/detect")
-async def detect(req: dict, request: Request):
-    lang, conf = request.app.state.engine.detect_language(req["text"])
-    return {"language": lang, "confidence": conf}
+
+@router.post(
+    "/detect",
+    response_model=DetectResponse,
+    responses=ERROR_RESPONSES,
+    summary="Detect the language of a text",
+)
+async def detect(body: DetectRequest, engine: EngineDep) -> dict[str, Any]:
+    language, confidence = await run_in_threadpool(engine.detect_language, body.text)
+    return {"language": language, "confidence": round(float(confidence), 4)}
