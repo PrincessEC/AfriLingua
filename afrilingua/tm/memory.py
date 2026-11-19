@@ -470,6 +470,29 @@ class TranslationMemory:
                 self._semantic[pair].remove(entry_id)
         return True
 
+    def delete_by_origin(self, origin: str) -> int:
+        """Delete every entry added under ``origin`` (e.g. ``corpus:<id>``) and refresh indexes."""
+        with self._tx() as conn:
+            rows = conn.execute(
+                "SELECT id, src_lang, tgt_lang FROM entries WHERE origin=?", (origin,)
+            ).fetchall()
+            if not rows:
+                return 0
+            conn.execute("DELETE FROM entries WHERE origin=?", (origin,))
+        by_pair: dict[tuple[str, str], list[str]] = {}
+        for r in rows:
+            by_pair.setdefault((r[1], r[2]), []).append(r[0])
+        with self._index_lock:
+            for pair, ids in by_pair.items():
+                if pair in self._indexes:
+                    for eid in ids:
+                        self._indexes[pair].remove(eid)
+                if pair in self._semantic:
+                    for eid in ids:
+                        self._semantic[pair].remove(eid)
+        self.flush()
+        return len(rows)
+
     def stats(self) -> dict[str, Any]:
         """``{"entries", "approved", "by_pair": {"english→yoruba": n}}`` (contract §4)."""
         with self._conn() as conn:

@@ -32,6 +32,34 @@ def test_subcommands_parse():
     tr = parse("translate", "Good morning", "--to", "yoruba", "--from", "english")
     assert (tr.text, tr.to, tr.src, tr.mode) == ("Good morning", "yoruba", "english", "document")
     assert parse("bench", "--langs", "hausa").langs == "hausa"
+    cimp = parse(
+        "corpora",
+        "import",
+        "en.srt",
+        "yo.srt",
+        "--format",
+        "srt",
+        "--from",
+        "en",
+        "--to",
+        "yo",
+        "--source-name",
+        "Open Film",
+        "--license",
+        "CC-BY-4.0",
+        "--domain",
+        "media",
+        "--add-to-tm",
+    )
+    assert cimp.func is cli.cmd_corpora and cimp.files == ["en.srt", "yo.srt"] and cimp.add_to_tm
+    assert parse("corpora", "list").corpora_cmd == "list"
+    assert parse("corpora", "delete", "abc123").id == "abc123"
+    sp = parse("train", "splits", "--commercial-safe", "--max-domain-share", "0.35")
+    assert sp.func is cli.cmd_train and sp.commercial_safe and sp.max_domain_share == 0.35
+    mt = parse("train", "mt", "--dry-run", "--lora-r", "16")
+    assert mt.dry_run and mt.lora_r == 16
+    asr = parse("train", "asr", "--lang", "yoruba", "--dry-run")
+    assert asr.lang == "yoruba" and asr.dry_run
 
 
 def test_invalid_args_exit():
@@ -85,3 +113,57 @@ def test_version(capsys):
     with pytest.raises(SystemExit):
         parse("--version")
     assert "2.0.0.dev0" in capsys.readouterr().out
+
+
+def test_corpora_and_train_commands_end_to_end(tmp_path, monkeypatch, capsys):
+    from afrilingua.core.settings import get_settings
+
+    monkeypatch.setenv("DATA_DIR", str(tmp_path / "data"))
+    get_settings.cache_clear()
+
+    tsv = tmp_path / "pairs.tsv"
+    tsv.write_text(
+        "Good morning everyone\tẸ káàárọ̀ gbogbo yín\n"
+        "Thank you very much\tẸ ṣé púpọ̀ gan-an\n"
+        "Welcome to the meeting\tẸ káàbọ̀ sí ìpàdé náà\n",
+        encoding="utf-8",
+    )
+    rc = cli.main(
+        [
+            "corpora",
+            "import",
+            str(tsv),
+            "--format",
+            "tsv",
+            "--from",
+            "en",
+            "--to",
+            "yo",
+            "--source-name",
+            "Greeting Phrases",
+            "--license",
+            "CC-BY-4.0",
+            "--add-to-tm",
+        ]
+    )
+    assert rc == 0
+    rec = json.loads(capsys.readouterr().out)
+    assert rec["accepted_pairs"] == 3 and rec["added_to_tm"] is True
+
+    assert cli.main(["corpora", "list"]) == 0
+    listed = json.loads(capsys.readouterr().out)
+    assert len(listed["items"]) == 1
+
+    out_dir = tmp_path / "splits"
+    assert cli.main(["train", "splits", "--out-dir", str(out_dir), "--commercial-safe"]) == 0
+    split_res = json.loads(capsys.readouterr().out)
+    assert split_res["train"] >= 2
+
+    assert cli.main(["train", "mt", "--data-dir", str(out_dir), "--dry-run"]) == 0
+    mt_res = json.loads(capsys.readouterr().out)
+    assert mt_res["dry_run"] is True and mt_res["train_rows"] == split_res["train"]
+
+    assert cli.main(["corpora", "delete", rec["id"]]) == 0
+    del_res = json.loads(capsys.readouterr().out)
+    assert del_res["deleted"] is True
+    get_settings.cache_clear()

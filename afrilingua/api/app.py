@@ -6,7 +6,7 @@ FastAPI application factory.
     app = create_app(fake_engine)      # tests: inject an engine
 
 Surfaces: REST ``/api/v1`` · live-room WebSockets · OpenAI-compatible ``/v1`` ·
-MCP Streamable HTTP ``/mcp`` · React SPA at ``/`` (``web/dist``).
+MCP Streamable HTTP ``/mcp`` · prerendered Vike site at ``/`` (``web/dist/client``).
 """
 
 from __future__ import annotations
@@ -15,6 +15,7 @@ import asyncio
 import contextlib
 import logging
 import os
+import re
 import threading
 import time
 from collections.abc import AsyncIterator, Callable
@@ -54,6 +55,7 @@ TAGS = [
     {"name": "rooms", "description": "Live conference interpretation rooms (REST + WebSockets)."},
     {"name": "translation-memory", "description": "Fast fuzzy search over vetted translations."},
     {"name": "contributions", "description": "Community contributions, review and export."},
+    {"name": "datasets", "description": "Bulk parallel-corpus ingestion (Bibles, subtitles, texts)."},
     {
         "name": "openai-compatible",
         "description": "Drop-in OpenAI audio API (`base_url=http://host:8000/v1`).",
@@ -65,8 +67,8 @@ FALLBACK_HTML = """<!doctype html>
 <title>AfriLingua</title>
 <style>
  body{font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;max-width:46rem;margin:4rem auto;padding:0 1.25rem;
- line-height:1.6;color:#1c1917;background:#fafaf9}
- code{background:#e7e5e4;padding:.15rem .4rem;border-radius:.3rem} a{color:#b45309}
+ line-height:1.6;color:#0a0a0b;background:#fafafa}
+ code{background:#f4f4f5;border:1px solid #e4e4e7;padding:.15rem .4rem;border-radius:.3rem} a{color:#3b47d9}
  h1{font-size:1.9rem;margin-bottom:.25rem}
 </style></head><body>
 <h1>AfriLingua API is running</h1>
@@ -104,6 +106,19 @@ def _open_contrib(tm: Any) -> Any:
         return open_contribution_store(tm)
     except Exception:
         logger.exception("Could not open the contribution store")
+        return None
+
+
+def _open_datasets(tm: Any) -> Any:
+    try:
+        from afrilingua.training.corpora import open_corpus_store
+    except ImportError:
+        logger.info("afrilingua.training.corpora not available; corpus store disabled")
+        return None
+    try:
+        return open_corpus_store(tm)
+    except Exception:
+        logger.exception("Could not open the corpus store")
         return None
 
 
@@ -157,20 +172,49 @@ async def _maintenance(app: FastAPI, engine: AfriLinguaEngine, mode: str) -> Non
             logger.exception("Maintenance task failed")
 
 
-# ── SPA ─────────────────────────────────────────────────────────────────────
+# ── SPA (Vike prerendered static site) ──────────────────────────────────────
+# `pnpm --dir web build` emits a fully prerendered static site into web/dist/client:
+#   index.html, <route>/index.html per public route, room/_/index.html (template for the
+#   dynamic /room/<id> route), 404.html (Vike _error page), assets/, favicon.svg, robots.txt ...
+# No Node runs in production; this module is the only "router".
+SPA_CLIENT_SUBDIR = "client"
+ROOM_ROUTE_RE = re.compile(r"room/[^/]+")
+
+
 def _resolve_spa_path(web_dist: Path, full_path: str) -> tuple[str, Path | None]:
-    """Return ("fallback"|"file"|"index"|"missing", path) for a client path (blocking FS calls)."""
-    index = web_dist / "index.html"
+    """Map a request path to a file in ``web_dist/client`` (blocking FS calls).
+
+    Returns ``(kind, path)`` where kind is:
+      ``fallback``  web app not built (serve the "build me" page)
+      ``file``      a static file (hashed assets, favicon, robots.txt, *.pageContext.json ...)
+      ``page``      a prerendered HTML page (``/``, ``/translate`` -> ``translate/index.html``,
+                    any ``/room/<id>`` -> the ``room/_/index.html`` template)
+      ``notfound``  unknown route: serve Vike's prerendered ``404.html`` with status 404
+      ``missing``   unknown static file (path has an extension) or traversal attempt
+    """
+    root = web_dist / SPA_CLIENT_SUBDIR
+    index = root / "index.html"
     if not index.is_file():
         return "fallback", None
-    if full_path:
-        root = web_dist.resolve()
-        candidate = (web_dist / full_path).resolve()
-        if candidate.is_file() and candidate.is_relative_to(root):
-            return "file", candidate
-        if "." in Path(full_path).name and not full_path.endswith(".html"):
-            return "missing", None
-    return "index", index
+    rel = full_path.strip("/")
+    if not rel:
+        return "page", index
+    root_resolved = root.resolve()
+    candidate = (root / rel).resolve()
+    if not candidate.is_relative_to(root_resolved):  # traversal guard
+        return "missing", None
+    if candidate.is_file():
+        return "file", candidate
+    if candidate.is_dir() and (candidate / "index.html").is_file():
+        return "page", candidate / "index.html"
+    if ROOM_ROUTE_RE.fullmatch(rel):
+        template = root_resolved / "room" / "_" / "index.html"
+        if template.is_file():
+            return "page", template
+    if "." in Path(rel).name:
+        return "missing", None
+    page_404 = root_resolved / "404.html"
+    return "notfound", (page_404 if page_404.is_file() else None)
 
 
 def _install_spa(app: FastAPI, web_dist: Path) -> None:
@@ -182,10 +226,21 @@ def _install_spa(app: FastAPI, web_dist: Path) -> None:
         kind, target = await run_in_threadpool(_resolve_spa_path, web_dist, full_path)
         if kind == "fallback":
             return HTMLResponse(FALLBACK_HTML.replace("__VERSION__", __version__))
-        if kind == "missing" or target is None:
+        if kind == "missing":
             return error_response(404, "not_found", f"Static file {path} not found.", request)
+        if kind == "notfound":
+            if target is None:
+                return error_response(404, "not_found", f"No route for {path}.", request)
+            return FileResponse(target, status_code=404, headers={"Cache-Control": "no-cache"})
+        if target is None:
+            return error_response(404, "not_found", f"No route for {path}.", request)
         if kind == "file":
-            cache = "public, max-age=31536000, immutable" if "/assets/" in path else "public, max-age=3600"
+            if "/assets/" in path:
+                cache = "public, max-age=31536000, immutable"  # content-hashed by Vite
+            elif path.endswith(".pageContext.json"):
+                cache = "no-cache"  # Vike client-nav payloads change with every build
+            else:
+                cache = "public, max-age=3600"
             return FileResponse(target, headers={"Cache-Control": cache})
         return FileResponse(target, headers={"Cache-Control": "no-cache"})
 
@@ -244,7 +299,7 @@ def _mount_mcp(app: FastAPI, settings: Settings) -> Any:
 
 # ── factory ─────────────────────────────────────────────────────────────────
 def _include_community_routers(app: FastAPI) -> None:
-    for module_name in ("tm", "contributions"):
+    for module_name in ("tm", "contributions", "datasets"):
         try:
             module = __import__(f"afrilingua.api.routers.{module_name}", fromlist=["router"])
             app.include_router(module.router)
@@ -283,6 +338,7 @@ def create_app(
         app.state.engine = eng
         app.state.tm = _open_tm(eng)
         app.state.contrib = _open_contrib(app.state.tm)
+        app.state.datasets = _open_datasets(app.state.tm)
         app.state.rooms = RoomManager(eng, session_factory=session_factory)
         await app.state.rooms.start()
         app.state.jobs = JobManager(eng, s.data_dir / "jobs")

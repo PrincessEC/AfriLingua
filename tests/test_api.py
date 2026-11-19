@@ -263,21 +263,73 @@ def test_spa_fallback_page_when_not_built(fake_engine, tmp_path):
         assert r.status_code == 200 and "pnpm --dir web build" in r.text
 
 
+def _write_site(dist):
+    """A miniature `vike build` output: dist/client with prerendered pages."""
+    client = dist / "client"
+    pages = {
+        "index.html": "<html>HOME</html>",
+        "translate/index.html": "<html>TRANSLATE</html>",
+        "room/_/index.html": "<html>ROOM-TEMPLATE</html>",
+        "404.html": "<html>NOT-FOUND</html>",
+        "assets/app.js": "console.log(1)",
+        "robots.txt": "User-agent: *\nAllow: /\n",
+        "translate/index.pageContext.json": "{}",
+    }
+    for rel, body in pages.items():
+        f = client / rel
+        f.parent.mkdir(parents=True, exist_ok=True)
+        f.write_text(body, encoding="utf-8")
+    return client
+
+
+def test_spa_fallback_page_when_client_dir_missing(fake_engine, tmp_path):
+    # dist/ exists but has no client/ (e.g. a stale pre-Vike build): still the build hint.
+    dist = tmp_path / "dist"
+    dist.mkdir()
+    (dist / "index.html").write_text("<html>OLD</html>", encoding="utf-8")
+    with TestClient(create_app(fake_engine, mount_mcp=False, web_dist=dist)) as c:
+        r = c.get("/translate")
+        assert r.status_code == 200 and "pnpm --dir web build" in r.text
+
+
 def test_spa_serves_index_and_assets(fake_engine, tmp_path):
     dist = tmp_path / "dist"
-    (dist / "assets").mkdir(parents=True)
-    (dist / "index.html").write_text("<html>SPA</html>", encoding="utf-8")
-    (dist / "assets" / "app.js").write_text("console.log(1)", encoding="utf-8")
+    _write_site(dist)
     with TestClient(create_app(fake_engine, mount_mcp=False, web_dist=dist)) as c:
-        assert c.get("/").text == "<html>SPA</html>"
-        assert c.get("/room/abc-123").text == "<html>SPA</html>"  # client route
+        assert c.get("/").text == "<html>HOME</html>"
+        assert c.get("/translate").text == "<html>TRANSLATE</html>"  # <route>/index.html
+        assert c.get("/translate/").text == "<html>TRANSLATE</html>"
+        assert c.get("/translate/index.html").text == "<html>TRANSLATE</html>"
+        # Dynamic client-only route: every /room/<id> gets the prerendered template.
+        assert c.get("/room/abc-123").text == "<html>ROOM-TEMPLATE</html>"
+        assert c.get("/room/ABC123/?pin=1").text == "<html>ROOM-TEMPLATE</html>"
+        assert "no-cache" in c.get("/room/abc-123").headers["cache-control"]
+        # Unknown routes get Vike's prerendered 404.html with a real 404 status.
+        for bad in ("/room", "/room/a/b", "/nope", "/translate/deeper"):
+            r = c.get(bad)
+            assert r.status_code == 404 and r.text == "<html>NOT-FOUND</html>", bad
         asset = c.get("/assets/app.js")
         assert asset.text == "console.log(1)" and "immutable" in asset.headers["cache-control"]
         assert c.get("/assets/missing.js").status_code == 404
+        assert c.get("/robots.txt").text.startswith("User-agent")
+        ctx = c.get("/translate/index.pageContext.json")
+        assert ctx.status_code == 200 and ctx.headers["cache-control"] == "no-cache"
         assert c.get("/api/v1/nope").json()["error"]["code"] == "not_found"
         assert c.get("/v1/nope").status_code == 404
-        assert c.get("/../../etc/passwd").status_code in {200, 404}  # never escapes dist
+        assert c.get("/../../etc/passwd").status_code in {200, 404}  # never escapes dist/client
         assert c.get("/docs").status_code == 200
+        assert c.head("/translate").status_code == 200
+
+
+def test_spa_resolver_blocks_traversal(tmp_path):
+    from afrilingua.api.app import _resolve_spa_path
+
+    dist = tmp_path / "dist"
+    _write_site(dist)
+    (dist / "secret.txt").write_text("nope", encoding="utf-8")  # sibling of client/, outside the root
+    assert _resolve_spa_path(dist, "../secret.txt") == ("missing", None)
+    assert _resolve_spa_path(dist, "secret.txt")[0] == "missing"
+    assert _resolve_spa_path(dist, "translate/../../secret.txt") == ("missing", None)
 
 
 def test_no_web(fake_engine):

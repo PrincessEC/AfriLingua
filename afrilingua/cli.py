@@ -8,6 +8,9 @@
     afrilingua models list
     afrilingua status
     afrilingua translate "Good morning" --to yoruba [--from english]
+    afrilingua corpora import <files...> --format srt --from en --to yo --source-name ... --license CC-BY-4.0
+    afrilingua corpora list | delete <id>
+    afrilingua train splits | mt | asr
     afrilingua bench [--langs yoruba,igbo]
 """
 
@@ -22,6 +25,7 @@ import sys
 import threading
 import time
 from collections.abc import Sequence
+from pathlib import Path
 from typing import Any
 
 from afrilingua import __version__
@@ -224,6 +228,97 @@ def cmd_bench(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_corpora(args: argparse.Namespace) -> int:
+    from afrilingua.core.errors import AfriLinguaError
+    from afrilingua.tm import open_translation_memory
+    from afrilingua.training.corpora import open_corpus_store
+
+    tm = open_translation_memory()
+    store = open_corpus_store(tm=tm)
+    try:
+        if args.corpora_cmd == "list":
+            _print_json({"items": [r.to_dict() for r in store.list()]})
+            return 0
+        if args.corpora_cmd == "delete":
+            _print_json(store.delete(args.id))
+            return 0
+        rec = store.import_corpus(
+            fmt=args.format,
+            files=[Path(p) for p in args.files],
+            src_lang=args.src,
+            tgt_lang=args.to,
+            source_name=args.source_name,
+            license=args.license,
+            domain=args.domain,
+            add_to_tm=args.add_to_tm,
+        )
+        _print_json(rec.to_dict())
+        return 0
+    except AfriLinguaError as exc:
+        print(f"error [{exc.code}]: {exc}", file=sys.stderr)
+        return 2
+
+
+def cmd_train(args: argparse.Namespace) -> int:
+    from afrilingua.core.errors import AfriLinguaError
+
+    try:
+        if args.train_cmd == "splits":
+            from afrilingua.contrib import open_contribution_store
+            from afrilingua.tm import open_translation_memory
+            from afrilingua.training.corpora import open_corpus_store
+            from afrilingua.training.datasets import build_training_splits
+
+            tm = open_translation_memory()
+            summary = build_training_splits(
+                out_dir=args.out_dir,
+                contrib=open_contribution_store(tm=tm),
+                corpora=open_corpus_store(tm=tm),
+                tm=tm,
+                lang=args.lang,
+                commercial_safe=args.commercial_safe,
+                include_tm=args.include_tm,
+                max_domain_share=args.max_domain_share,
+            )
+            _print_json(summary.to_dict())
+            return 0
+        if args.train_cmd == "mt":
+            from afrilingua.training.mt_lora import MTLoRAConfig, run_mt_lora
+
+            res = run_mt_lora(
+                MTLoRAConfig(
+                    base_model=args.base_model,
+                    data_dir=Path(args.data_dir),
+                    output_dir=Path(args.output_dir),
+                    epochs=args.epochs,
+                    max_steps=args.max_steps,
+                    lora_r=args.lora_r,
+                    export_ct2=not args.no_ct2,
+                    dry_run=args.dry_run,
+                )
+            )
+            _print_json(res)
+            return 0
+        if args.train_cmd == "asr":
+            from afrilingua.training.asr_adapter import ASRAdapterConfig, run_asr_adapter_training
+
+            res = run_asr_adapter_training(
+                ASRAdapterConfig(
+                    lang=args.lang,
+                    epochs=args.epochs,
+                    max_steps=args.max_steps,
+                    dry_run=args.dry_run,
+                )
+            )
+            _print_json(res)
+            return 0
+    except (AfriLinguaError, ValueError, RuntimeError) as exc:
+        code = getattr(exc, "code", "train_error")
+        print(f"error [{code}]: {exc}", file=sys.stderr)
+        return 2
+    return 0
+
+
 # ── parser ─────────────────────────────────────────────────────────────────
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
@@ -275,6 +370,48 @@ def build_parser() -> argparse.ArgumentParser:
     p = sub.add_parser("bench", help="Benchmark translation/speech latency on this machine.")
     p.add_argument("--langs", default=None, help="Comma-separated languages.")
     p.set_defaults(func=cmd_bench)
+
+    p = sub.add_parser("corpora", help="Import, list or delete bulk parallel corpora (Bibles, subtitles, docs).")
+    csub = p.add_subparsers(dest="corpora_cmd", metavar="<import|list|delete>")
+    csub.required = True
+    cimp = csub.add_parser("import", help="Import parallel files into the corpus store (and optionally TM).")
+    cimp.add_argument("files", nargs="+", help="Input file(s): 1 for tsv/csv/jsonl/tmx, 2+ for ebible/usfm/srt/vtt/lines/unaligned.")
+    cimp.add_argument("--format", required=True, help="ebible, usfm, srt, vtt, lines, tsv, csv, jsonl, tmx, unaligned.")
+    cimp.add_argument("--from", dest="src", required=True, help="Source language.")
+    cimp.add_argument("--to", required=True, help="Target language.")
+    cimp.add_argument("--source-name", required=True, help="Dataset provenance name (e.g. 'Yoruba Open Bible 1900').")
+    cimp.add_argument("--license", required=True, help="public-domain, CC0-1.0, CC-BY-4.0, CC-BY-SA-4.0, research-only, proprietary-permission.")
+    cimp.add_argument("--domain", default="general", help="general, religious, media, medical, legal, education, government.")
+    cimp.add_argument("--add-to-tm", action="store_true", help="Also ingest accepted pairs into Translation Memory.")
+    csub.add_parser("list", help="List imported parallel corpora.")
+    cdel = csub.add_parser("delete", help="Delete an imported corpus (and its TM entries if ingested).")
+    cdel.add_argument("id", help="Corpus ID.")
+    p.set_defaults(func=cmd_corpora)
+
+    p = sub.add_parser("train", help="Build training splits and fine-tune LoRA / MMS adapters.")
+    tsub = p.add_subparsers(dest="train_cmd", metavar="<splits|mt|asr>")
+    tsub.required = True
+    tsplits = tsub.add_parser("splits", help="Build deduplicated, domain-capped train/val/test JSONL splits.")
+    tsplits.add_argument("--out-dir", default=None, help="Output directory (default: data/processed).")
+    tsplits.add_argument("--lang", default=None, help="Restrict to pairs involving this language.")
+    tsplits.add_argument("--commercial-safe", action="store_true", help="Exclude copyleft and research-only corpora.")
+    tsplits.add_argument("--include-tm", action="store_true", help="Include approved ad-hoc TM entries.")
+    tsplits.add_argument("--max-domain-share", type=float, default=0.40, help="Cap per-domain share (default: 0.40).")
+    tmt = tsub.add_parser("mt", help="LoRA fine-tune NLLB-200 on parallel splits (+ optional CTranslate2 int8 export).")
+    tmt.add_argument("--base-model", default="facebook/nllb-200-distilled-600M")
+    tmt.add_argument("--data-dir", default="data/processed")
+    tmt.add_argument("--output-dir", default="data/finetuned/nllb-afrilingua")
+    tmt.add_argument("--epochs", type=int, default=3)
+    tmt.add_argument("--max-steps", type=int, default=-1)
+    tmt.add_argument("--lora-r", type=int, default=8)
+    tmt.add_argument("--no-ct2", action="store_true", help="Skip CTranslate2 quantized export.")
+    tmt.add_argument("--dry-run", action="store_true", help="Validate splits and runtime config without loading weights.")
+    tasr = tsub.add_parser("asr", help="Fine-tune an MMS CTC language adapter on approved community audio.")
+    tasr.add_argument("--lang", required=True, help="Target language (e.g. yoruba, igbo, hausa).")
+    tasr.add_argument("--epochs", type=int, default=5)
+    tasr.add_argument("--max-steps", type=int, default=-1)
+    tasr.add_argument("--dry-run", action="store_true", help="Count approved recordings without loading weights.")
+    p.set_defaults(func=cmd_train)
     return parser
 
 

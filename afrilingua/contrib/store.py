@@ -292,6 +292,7 @@ class ContributionStore:
         d["has_audio"] = bool(row["audio_path"])
         if d["kind"] == "transcription":
             d["lang"] = d["src_lang"]
+            d["text"] = d["source_text"]
         return d
 
     def _row(self, contribution_id: str) -> sqlite3.Row:
@@ -679,6 +680,7 @@ class ContributionStore:
                 {
                     "contributor": r[0],
                     "contributions": int(r[1]),
+                    "count": int(r[1]),
                     "approved": int(r[2]),
                     "reputation": int(r[3]),
                 }
