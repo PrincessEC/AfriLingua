@@ -1,54 +1,183 @@
-"""CTranslate2 NLLB implementation (int8 on CPU, float16/int8 on GPU)."""
+"""
+NLLB-200 translation via CTranslate2 (int8 on CPU, fp16 / int8_fp16 on CUDA).
+
+The Hugging Face checkpoint is converted once into
+``settings.ct2_cache/<model-slug>-<quantization>`` and reused afterwards.
+"""
+
 from __future__ import annotations
 
 import logging
+import os
+import shutil
+import threading
+import time
+from pathlib import Path
 from typing import Any
 
-import ctranslate2
-from transformers import AutoTokenizer
-
-from afrilingua.backends.base import MTBackend
-from afrilingua.core.hardware import resolve_runtime
-from afrilingua.core.languages import get_registry
+from afrilingua.backends._common import (
+    checkpoint_fingerprint,
+    ct2_compute_type,
+    ct2_device_for,
+    is_ct2_model_dir,
+    module_available,
+    resolve_mt_source,
+    slugify,
+    snapshot_path,
+)
+from afrilingua.core.errors import ModelLoadError
+from afrilingua.core.hardware import RuntimePlan, resolve_runtime
+from afrilingua.core.languages import LanguageRegistry, get_registry
+from afrilingua.core.settings import Settings, get_settings
 
 logger = logging.getLogger(__name__)
 
+_CONVERT_LOCK = threading.Lock()
+_NLLB_PATTERNS = ["*.json", "*.model", "model.safetensors", "*.safetensors.index.json"]
+_TOKENIZER_FILES = (
+    "tokenizer.json",
+    "tokenizer_config.json",
+    "special_tokens_map.json",
+    "sentencepiece.bpe.model",
+    "added_tokens.json",
+)
 
-class CT2NLLBBackend(MTBackend):
-    def __init__(self, model_dir: str) -> None:
-        self.name = "ct2-nllb"
-        self.model_dir = model_dir
-        self.plan = resolve_runtime()
-        self.registry = get_registry()
-        self._translator: ctranslate2.Translator | None = None
-        self._tokenizer: AutoTokenizer | None = None
 
+def local_nllb_checkpoint(model_id: str, settings: Settings) -> Path:
+    """Local snapshot dir for an NLLB id; prefers safetensors, falls back to .bin."""
+    try:
+        return snapshot_path(
+            model_id,
+            settings,
+            allow_patterns=_NLLB_PATTERNS,
+            required_any=("model.safetensors", "model.safetensors.index.json"),
+        )
+    except ModelLoadError:
+        return snapshot_path(
+            model_id,
+            settings,
+            allow_patterns=["*.json", "*.model", "pytorch_model.bin*"],
+            required_any=("pytorch_model.bin", "pytorch_model.bin.index.json"),
+        )
+
+
+def ct2_target_dir(source: str, quantization: str, settings: Settings) -> Path:
+    """Where the CT2 conversion of ``source`` with ``quantization`` lives."""
+    src_path = Path(source)
+    if src_path.is_dir():
+        slug = f"local-{slugify(src_path.name)}-{checkpoint_fingerprint(src_path)}"
+    else:
+        slug = slugify(source)
+    return settings.ct2_cache / f"{slug}-{quantization}"
+
+
+def ensure_ct2_model(source: str, quantization: str, settings: Settings | None = None) -> Path:
+    """Convert ``source`` (hub id or local checkpoint) to CTranslate2 if needed.
+
+    Conversion goes to a temporary sibling directory and is renamed atomically,
+    so an interrupted conversion never leaves a half-written model behind.
+    Returns the converted model directory.
+    """
+    settings = settings or get_settings()
+    src = Path(source)
+    if is_ct2_model_dir(src):
+        return src
+    target = ct2_target_dir(source, quantization, settings)
+    if is_ct2_model_dir(target):
+        return target
+    with _CONVERT_LOCK:
+        if is_ct2_model_dir(target):
+            return target
+        import ctranslate2
+
+        local = src if src.is_dir() else local_nllb_checkpoint(source, settings)
+        tmp = target.with_name(f"{target.name}.tmp-{os.getpid()}")
+        shutil.rmtree(tmp, ignore_errors=True)
+        target.parent.mkdir(parents=True, exist_ok=True)
+        copy_files = [f for f in _TOKENIZER_FILES if (local / f).is_file()]
+        logger.info(
+            "Converting %s to CTranslate2 (%s) — one-time, may take a few minutes ...", source, quantization
+        )
+        t0 = time.perf_counter()
+        try:
+            converter = ctranslate2.converters.TransformersConverter(str(local), copy_files=copy_files)
+            converter.convert(str(tmp), quantization=quantization, force=True)
+            if target.exists():
+                shutil.rmtree(target, ignore_errors=True)
+            tmp.rename(target)
+        except Exception as exc:
+            shutil.rmtree(tmp, ignore_errors=True)
+            raise ModelLoadError(f"CTranslate2 conversion of {source!r} failed: {exc}") from exc
+        logger.info("Converted %s in %.1fs → %s", source, time.perf_counter() - t0, target)
+        return target
+
+
+class CT2NLLBBackend:
+    """:class:`~afrilingua.backends.base.MTBackend` backed by CTranslate2."""
+
+    name = "ctranslate2-nllb"
+
+    def __init__(
+        self,
+        model_id: str | None = None,
+        *,
+        settings: Settings | None = None,
+        plan: RuntimePlan | None = None,
+        registry: LanguageRegistry | None = None,
+        max_batch_size: int = 32,
+    ) -> None:
+        self.settings = settings or get_settings()
+        self.plan = plan or resolve_runtime()
+        self.registry = registry or get_registry()
+        self.model_id = model_id or self.plan.model_nllb
+        self.max_batch_size = max(1, max_batch_size)
+        self._translator: Any = None
+        self._tokenizer: Any = None
+        self.device = "cpu"
+        self.compute_type = "int8"
+        self.model_dir: Path | None = None
+
+    # ── lifecycle ───────────────────────────────────────────────────────────
     def load(self) -> None:
-        if self.is_loaded():
+        """Convert (first run), then load the translator and tokenizer."""
+        if self._translator is not None:
             return
-        
-        # Determine device/compute from plan
-        device = self.plan.device
-        compute_type = self.plan.compute_type
-        
-        logger.info("Loading CT2 NLLB from %s (device=%s, compute=%s)", self.model_dir, device, compute_type)
-        
-        # Fix: Cast to handle AutoTokenizer type
-        self._tokenizer = AutoTokenizer.from_pretrained(self.model_dir, src_lang="eng_Latn", tgt_lang="eng_Latn")
+        if not module_available("ctranslate2"):
+            raise ModelLoadError("ctranslate2 is not installed (pip install 'afrilingua[fast]').")
+        import ctranslate2
+        from transformers import AutoTokenizer
+
+        self.device = ct2_device_for(self.plan.device)
+        self.compute_type = ct2_compute_type(self.device, self.plan.compute_type)
+        source = resolve_mt_source(self.settings, self.model_id)
+        model_dir = ensure_ct2_model(source, self.compute_type, self.settings)
+        threads = self.plan.threads if self.device == "cpu" else 1
         self._translator = ctranslate2.Translator(
-            self.model_dir,
-            device=device,
-            compute_type=compute_type,
-            intra_threads=self.plan.threads,
+            str(model_dir),
+            device=self.device,
+            compute_type=self.compute_type,
+            inter_threads=1,
+            intra_threads=threads,
+        )
+        tok_source = model_dir if (model_dir / "tokenizer_config.json").is_file() else source
+        self._tokenizer = AutoTokenizer.from_pretrained(
+            str(tok_source),
+            cache_dir=str(self.settings.hf_cache),
+            local_files_only=bool(self.settings.offline) or Path(str(tok_source)).is_dir(),
+        )
+        self.model_dir = model_dir
+        logger.info(
+            "CT2 NLLB ready (%s, %s, %d threads) from %s", self.device, self.compute_type, threads, model_dir
         )
 
     def is_loaded(self) -> bool:
-        return self._translator is not None and self._tokenizer is not None
+        return self._translator is not None
 
     def unload(self) -> None:
         self._translator = None
         self._tokenizer = None
 
+    # ── inference ───────────────────────────────────────────────────────────
     def translate_batch(
         self,
         texts: list[str],
@@ -58,32 +187,27 @@ class CT2NLLBBackend(MTBackend):
         beam_size: int = 1,
         max_length: int = 256,
     ) -> list[str]:
-        if not self.is_loaded():
-            self.load()
-        
-        if self._translator is None or self._tokenizer is None:
-            raise RuntimeError("MT models not loaded")
-        
-        # Map canonical registry names to NLLB codes
+        """Translate ``texts`` from ``src_lang`` to ``tgt_lang`` (canonical names)."""
+        if not texts:
+            return []
+        self.load()
         src_code = self.registry.nllb_code(src_lang)
         tgt_code = self.registry.nllb_code(tgt_lang)
-        
-        # NLLB requires source language prefix
-        self._tokenizer.src_lang = src_code
-        source_inputs = [f"{src_code} {t}" for t in texts]
-        
-        # Tokenize
-        tokens = self._tokenizer(source_inputs, padding=True, truncation=True, return_tensors="np")
-        input_ids = tokens["input_ids"]
-        
-        # Translate
+        tok = self._tokenizer
+        tok.src_lang = src_code
+        sources = [tok.convert_ids_to_tokens(tok.encode(t, truncation=True, max_length=1000)) for t in texts]
         results = self._translator.translate_batch(
-            input_ids,
-            beam_size=beam_size,
+            sources,
+            target_prefix=[[tgt_code]] * len(sources),
+            beam_size=max(1, beam_size),
             max_decoding_length=max_length,
-            target_prefix=[[tgt_code]] * len(texts),
+            max_batch_size=self.max_batch_size,
         )
-        
-        # Decode
-        output_ids = [r.hypotheses[0] for r in results]
-        return self._tokenizer.batch_decode(output_ids, skip_special_tokens=True)
+        outputs: list[str] = []
+        for res in results:
+            tokens = res.hypotheses[0]
+            if tokens and tokens[0] == tgt_code:
+                tokens = tokens[1:]
+            ids = tok.convert_tokens_to_ids(tokens)
+            outputs.append(tok.decode(ids, skip_special_tokens=True).strip())
+        return outputs
