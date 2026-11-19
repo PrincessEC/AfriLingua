@@ -1,0 +1,16 @@
+# Hausa seed prompts for recording (common greetings/phrases, standard orthography).
+# Format: domain<TAB>sentence
+seed	Sannu.
+seed	Ina kwana?
+seed	Ina wuni?
+seed	Lafiya lau.
+seed	Barka da safiya.
+seed	Barka da yamma.
+seed	Barka da zuwa.
+seed	Na gode.
+seed	Don Allah.
+seed	Sai an jima.
+seed	Sai gobe.
+seed	Yaya aiki?
+seed	Ee.
+seed	A'a.

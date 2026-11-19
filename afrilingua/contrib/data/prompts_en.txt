@@ -1,0 +1,279 @@
+# AfriLingua starter prompts for translation (English source sentences).
+# Format: domain<TAB>sentence. Lines starting with # are ignored.
+greetings	Good morning.
+greetings	Good afternoon.
+greetings	Good evening.
+greetings	Good night, sleep well.
+greetings	How are you?
+greetings	I am fine, thank you.
+greetings	What is your name?
+greetings	My name is Ada.
+greetings	Nice to meet you.
+greetings	Welcome to our home.
+greetings	Thank you very much.
+greetings	You are welcome.
+greetings	Please sit down.
+greetings	Excuse me.
+greetings	I am sorry.
+greetings	See you tomorrow.
+greetings	Goodbye, travel safely.
+greetings	How is your family?
+greetings	My family is well.
+greetings	Where are you from?
+greetings	I am from Lagos.
+greetings	Do you speak English?
+greetings	I speak a little Yoruba.
+greetings	Please speak slowly.
+greetings	I do not understand.
+greetings	Can you repeat that, please?
+greetings	Happy birthday to you.
+greetings	Congratulations on your new baby.
+greetings	Happy new year.
+greetings	Well done for your hard work.
+greetings	Have a safe journey.
+greetings	Long time no see.
+greetings	I missed you.
+greetings	Greet your mother for me.
+greetings	May God bless you.
+greetings	Enjoy your meal.
+greetings	Let us go together.
+greetings	Come in, the door is open.
+conference	Good morning, everyone, and welcome to the conference.
+conference	Please take your seats, the meeting will start shortly.
+conference	Can everyone hear me clearly?
+conference	Please switch your phones to silent mode.
+conference	Let us begin with a short prayer.
+conference	I would like to introduce our first speaker.
+conference	Please join me in welcoming our guest.
+conference	Thank you for coming today.
+conference	The agenda has been shared with all participants.
+conference	We will now take questions from the audience.
+conference	Please raise your hand if you have a question.
+conference	Please state your name before you speak.
+conference	We will take a fifteen-minute break.
+conference	Lunch will be served in the main hall.
+conference	The next session starts at two o'clock.
+conference	Please return to your seats.
+conference	The microphone is not working.
+conference	Can the interpreter please speak louder?
+conference	Interpretation is available in Hausa, Igbo and Yoruba.
+conference	Please put on your headphones to listen to the translation.
+conference	Choose your language on the screen.
+conference	Let us move to the next item on the agenda.
+conference	Does anyone have any comments?
+conference	The minutes of the last meeting were approved.
+conference	All those in favour, please raise your hands.
+conference	The motion has been carried.
+conference	We have run out of time.
+conference	We will continue this discussion tomorrow.
+conference	Thank you all for your contributions.
+conference	The meeting is now closed.
+conference	Please fill in the feedback form before you leave.
+conference	Certificates will be given at the end of the workshop.
+conference	The slides will be sent to you by email.
+conference	The workshop will hold in Abuja next month.
+conference	Please register at the front desk.
+conference	Your name tag is on the table.
+conference	Our time is short, so I will be brief.
+conference	I agree with the previous speaker.
+health	Where is the nearest hospital?
+health	I need to see a doctor.
+health	Call an ambulance, please.
+health	I have a headache.
+health	My stomach hurts.
+health	The child has a fever.
+health	She has been coughing for three days.
+health	Do you have any allergies?
+health	Take this medicine twice a day.
+health	Take one tablet after food.
+health	Drink plenty of clean water.
+health	Wash your hands with soap and water.
+health	Sleep under a mosquito net every night.
+health	The clinic opens at eight in the morning.
+health	Bring your child for vaccination on Monday.
+health	Vaccination is free for all children.
+health	Are you pregnant?
+health	The baby is healthy.
+health	Breastfeed your baby for six months.
+health	How long have you been sick?
+health	Where does it hurt?
+health	Please lie down here.
+health	Your blood pressure is high.
+health	You need to rest for a few days.
+health	Come back next week for a check-up.
+health	Keep the medicine away from children.
+health	Do not share needles.
+health	Cover your mouth when you cough.
+health	Malaria is treatable.
+health	Go to the hospital if the fever continues.
+health	Eat fruits and vegetables every day.
+health	The pharmacy is next to the market.
+health	Do you have a health insurance card?
+health	The nurse will call your name.
+health	I feel much better today.
+government	Where is the local government office?
+government	I want to register to vote.
+government	Bring your national identity card.
+government	The election will take place on Saturday.
+government	Every vote counts.
+government	Voting starts at eight o'clock.
+government	Please stand in line and wait for your turn.
+government	Fill in this form in capital letters.
+government	Sign your name here.
+government	Your application has been approved.
+government	Your application is still being processed.
+government	Come back with two passport photographs.
+government	The office is closed on public holidays.
+government	Pay your taxes before the end of the month.
+government	The road will be repaired next month.
+government	There will be a town hall meeting on Friday.
+government	Everyone is invited to attend.
+government	The community leaders will meet the governor.
+government	Report any crime to the nearest police station.
+government	Call the emergency number for help.
+government	Keep your receipt safe.
+government	The new law protects children's rights.
+government	Women and men have equal rights.
+government	The census officers will visit your house.
+government	Please answer all the questions honestly.
+government	Clean your environment every month.
+government	Do not throw rubbish into the gutter.
+government	Water will be supplied to the village next week.
+government	The borehole has been fixed.
+government	Electricity will be restored soon.
+government	Thank you for your patience.
+government	How can I help you today?
+government	Please wait outside.
+government	Your appointment is on Tuesday.
+education	The school resumes on Monday.
+education	Children must be in school by eight o'clock.
+education	Please open your books to page ten.
+education	Listen carefully to the teacher.
+education	Read the story aloud.
+education	Write your name at the top of the page.
+education	Who knows the answer?
+education	That is correct, well done.
+education	Try again.
+education	Homework is due tomorrow.
+education	The examination starts next week.
+education	Study hard and you will succeed.
+education	The library is open until five o'clock.
+education	Parents are invited to the school meeting.
+education	Every child deserves an education.
+education	Girls should go to school too.
+education	Learning in your mother tongue is important.
+education	Can you count from one to ten?
+education	What is the capital of Nigeria?
+education	The teacher is in the classroom.
+education	Please be quiet.
+education	It is time for break.
+education	Line up in front of the classroom.
+education	The results will be released on Friday.
+education	She passed all her examinations.
+education	He wants to become an engineer.
+education	The university is far from here.
+education	Scholarships are available for good students.
+education	Use a pencil, not a pen.
+education	Raise your hand before you speak.
+education	Share the book with your friend.
+education	We are learning how to use a computer.
+faith	Let us pray.
+faith	God is good.
+faith	Peace be upon you.
+faith	The service starts at nine o'clock.
+faith	Please stand for the reading.
+faith	Let us sing together.
+faith	The mosque is near the market.
+faith	The church is full today.
+faith	We thank God for his mercies.
+faith	May your soul rest in peace.
+faith	We are praying for your family.
+faith	Happy Sallah to you and your family.
+faith	Merry Christmas.
+faith	Happy Easter.
+faith	Ramadan begins next week.
+faith	Love your neighbour as yourself.
+faith	Forgive one another.
+faith	Give thanks in all circumstances.
+faith	The choir will now sing.
+faith	The offering will now be collected.
+faith	Please bow your heads.
+faith	Amen.
+faith	Let us greet one another.
+faith	May God grant you a long life.
+faith	May God protect you on your journey.
+faith	We gather here to celebrate this marriage.
+faith	The wedding will take place on Saturday.
+faith	The naming ceremony is on Sunday.
+faith	Everyone is welcome in this house of worship.
+faith	Please remove your shoes.
+market	How much is this?
+market	It is too expensive.
+market	Please reduce the price.
+market	I will buy two of these.
+market	Do you have change?
+market	Where can I buy rice?
+market	The tomatoes are fresh today.
+market	Give me one kilogram of beans.
+market	The market opens early in the morning.
+market	Prices have gone up this week.
+market	Can I pay with my phone?
+market	I will pay by bank transfer.
+market	Here is your receipt.
+market	Please put it in a bag.
+market	Do you sell palm oil?
+market	This fabric is very beautiful.
+market	How much is a bag of garri?
+market	I am just looking.
+market	Come back tomorrow, we will have more.
+market	The shop is closed today.
+market	Is this the last price?
+market	I will take it.
+market	Bring the goods to my house.
+market	How much is the transport fare to the city?
+market	The bus is leaving now.
+market	Stop here, please.
+market	My business is growing.
+market	I need a loan to expand my shop.
+market	The customer is always right.
+market	We deliver on Mondays and Thursdays.
+market	Please count the money again.
+market	The yams are very big this year.
+market	The farmer brought his harvest to the market.
+market	Fish is cheaper in the evening.
+numbers	One, two, three, four, five.
+numbers	Six, seven, eight, nine, ten.
+numbers	I have three children.
+numbers	It costs five hundred naira.
+numbers	The meeting is at ten o'clock.
+numbers	What time is it?
+numbers	It is half past two.
+numbers	Today is Monday.
+numbers	Tomorrow is Tuesday.
+numbers	Yesterday was Sunday.
+numbers	The market day is Wednesday.
+numbers	We will travel on Thursday.
+numbers	The party is on Friday night.
+numbers	I will see you on Saturday.
+numbers	There are seven days in a week.
+numbers	There are twelve months in a year.
+numbers	My birthday is in January.
+numbers	The rainy season starts in April.
+numbers	The harvest comes in October.
+numbers	Christmas is in December.
+numbers	I am twenty-five years old.
+numbers	Please wait for five minutes.
+numbers	The journey takes two hours.
+numbers	Come back in three days.
+numbers	He was born in the year two thousand.
+numbers	The house number is fifteen.
+numbers	My phone number has eleven digits.
+numbers	Divide it into four equal parts.
+numbers	Half of the class is absent.
+numbers	The first, the second and the third.
+numbers	This is my last chance.
+numbers	Morning, afternoon, evening and night.
+numbers	Early in the morning.
+numbers	Late at night.
+numbers	Every day of the week.
+numbers	Once a month.
