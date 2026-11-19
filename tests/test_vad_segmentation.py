@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import itertools
+
 import numpy as np
 import pytest
 
@@ -87,7 +89,7 @@ def test_max_length_cut_tiles_without_loss():
     utts = run(audio, mask, cfg)
     assert len(utts) >= 3
     assert [u.reason for u in utts[:2]] == ["max_length", "max_length"]
-    for a, b in zip(utts, utts[1:], strict=False):
+    for a, b in itertools.pairwise(utts):
         assert a.end == b.start  # contiguous: no gap, no overlap
     joined = np.concatenate([u.audio for u in utts])
     assert np.array_equal(joined, audio[utts[0].start : utts[-1].end])
