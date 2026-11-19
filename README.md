@@ -1,9 +1,8 @@
 ﻿# AfriLingua
 
-**Fast, lightweight AI translation and speech for African languages.**
-Igbo, Yoruba, Hausa and English today, with more added by configuration and community data. It runs offline on an ordinary laptop CPU.
+**Fast, accurate AI translation for African languages. Lightweight enough for any laptop.**
 
-Use it as a **Python library**, a **local REST API** (OpenAI-compatible), or an **MCP server** that AI agents can call. Or run the built-in **live interpretation app** for conferences, churches, clinics and classrooms.
+AfriLingua is an open-source translation library for **Yoruba, Igbo, Hausa and English**. It handles text, speech and documents, and more languages can be added through configuration. It runs fully offline on an ordinary CPU, with no GPU and no API bill. Your data never leaves the machine.
 
 [![CI](https://github.com/fegig/AfriLingua/actions/workflows/ci.yml/badge.svg)](https://github.com/fegig/AfriLingua/actions/workflows/ci.yml)
 ![Python](https://img.shields.io/badge/python-3.11%E2%80%933.13-blue)
@@ -13,85 +12,89 @@ Use it as a **Python library**, a **local REST API** (OpenAI-compatible), or an 
 ```python
 import afrilingua
 
-afrilingua.translate("Good morning, everyone.", to="yoruba")
-# e.g. 'Ẹ káàárọ̀, gbogbo yín.'  (illustrative; actual output depends on the model)
+afrilingua.translate("Where is the nearest clinic?", to="hausa")
+# 'A ina ne asibitin da ya fi kusa?'
+
+afrilingua.translate("Where is the nearest clinic?", to="yoruba")
+# 'Ibo ni ilé ìwòsàn tó sún mọ́ ẹ jù lọ wà?'
 ```
 
+These are real outputs from the default model (NLLB-200 600M, int8) on a laptop CPU.
+
+- **Fast.** Approved phrases return in about **0.1 ms**. New sentences take about a second on a laptop CPU.
+- **Accurate, and measurably improving.** Corrections take effect on the next request, and a new model ships only if it scores better.
+- **Lightweight.** About 2 GB of RAM with three languages loaded. No GPU needed.
+- **Plugs in anywhere.** Use it as a Python library, a local REST API, an OpenAI-compatible audio API, or an MCP server for AI agents.
+- **Trainable on your data.** Upload any translated text you have, and fine-tune on it.
+
 > [!NOTE]
-> AfriLingua v2 is in **alpha**. The engine, library API and contracts are stable enough to build on; the interpretation app and community hub are under active development. Benchmarks are published as they are measured. See [Speed and accuracy](#speed-and-accuracy).
+> AfriLingua is in **alpha**. The library API and HTTP contracts are stable enough to build on. Read the [security model](#security-model) before you expose the server on a network.
 
 ---
 
-## Why AfriLingua
-
-| | Typical cloud speech/translation API | AfriLingua |
-|---|---|---|
-| Runs without internet | No | **Yes**, after a one-time model download |
-| Runs on a CPU-only laptop | n/a (server-side) | **Yes**: int8 models, about 3 GB RAM target |
-| Your audio leaves the device | Yes | **No**. Data stays local unless you choose to share it |
-| Igbo / Yoruba / Hausa speech **and** text | Varies | **Yes**: speech-to-text, translation, text-to-speech |
-| Plugs into AI agents | Rarely | **Yes**: MCP server and OpenAI-compatible endpoints |
-| Improves from its users | No | **Yes**: corrections and recordings feed the next model |
-| Cost per minute | Metered | **Free** to run on your own hardware |
-
 ## Install
 
-> Not on PyPI yet. Install from GitHub:
+AfriLingua is not on PyPI yet. Install it from GitHub:
 
 ```bash
 pip install "afrilingua[all] @ git+https://github.com/fegig/AfriLingua.git@dev"
+afrilingua models pull --langs yoruba,igbo,hausa     # one-time download, then fully offline
 ```
 
-Extras: `fast` (int8 CPU backends: CTranslate2, faster-whisper, ONNX), `server` (REST and MCP), `audio` (microphone), `documents` (DOCX/PDF), `all` (everything above), `train` (fine-tuning).
+You need Python 3.11–3.13, about 3 GB of free RAM and 2–3 GB of disk for models. A GPU is used automatically when present, but is never required.
 
-Requirements: Python 3.11–3.13, about 3 GB free RAM, 2–3 GB disk for models. A GPU is optional; it is used automatically when present.
+The first translation into a language converts the model to int8 once, which takes about 2–3 minutes. Every run after that loads in under a second.
 
-Download models once (then work fully offline):
-
-```bash
-afrilingua models pull --langs igbo,yoruba,hausa
-```
+| Extra | Adds |
+|---|---|
+| `fast` | int8 CPU backends: CTranslate2, faster-whisper, ONNX |
+| `server` | REST, WebSocket and MCP server |
+| `audio` | Microphone capture |
+| `documents` | DOCX and PDF translation |
+| `train` | Fine-tuning |
+| `all` | Everything except `train` |
 
 ## Use it
 
-### 1. As a Python library
+### Python
 
 ```python
 import afrilingua
 
-afrilingua.translate("Where is the clinic?", to="hausa")                 # auto-detects the source
-afrilingua.translate(["Thank you", "Welcome"], to="igbo", source="english")
-afrilingua.translate(long_text, to="yoruba", mode="document")            # beam search for higher quality
+afrilingua.translate("Thank you", to="igbo")                                 # source is detected automatically
+afrilingua.translate(["Thank you", "Welcome"], to="igbo", source="english")  # batches
+afrilingua.translate(report_text, to="yoruba", mode="document")             # beam search for documents
 
-text  = afrilingua.transcribe(audio, lang="yoruba")   # mono float32, 16 kHz
-voice = afrilingua.speak("Ndewo", lang="igbo")        # SpeechAudio(waveform, sample_rate)
-
-afrilingua.languages()                                # what is installed and what each language supports
+text  = afrilingua.transcribe(audio, lang="yoruba")    # speech to text (16 kHz mono float32)
+voice = afrilingua.speak("Ndewo", lang="igbo")         # text to speech -> waveform + sample rate
+afrilingua.languages()                                 # what is installed and what each language supports
 ```
 
-Need control over backends, the translation memory or live streaming? Use the engine directly:
+For lower-level control, use the engine directly. Every result tells you where it came from and how long it took:
 
 ```python
 from afrilingua.engine import build_engine
 
 engine = build_engine()
-result = engine.translate_one("Good morning", "english", "yoruba")
-result.text, result.origin, result.latency_ms   # origin: "tm_exact" | "cache" | "mt" | "mt_tm_assisted"
+r = engine.translate_one("Good morning", "english", "yoruba")
+r.text, r.origin, r.latency_ms    # origin: "tm_exact" | "cache" | "mt" | "mt_tm_assisted"
 ```
 
-### 2. As a local API (OpenAI-compatible)
+### REST API
 
 ```bash
-afrilingua serve            # http://127.0.0.1:8000  (docs at /docs)
-```
+afrilingua serve                  # http://127.0.0.1:8000, interactive docs at /docs
 
-```bash
-curl -X POST http://127.0.0.1:8000/api/v1/translate \
+curl http://127.0.0.1:8000/api/v1/translate \
   -H "Content-Type: application/json" \
   -d '{"text": "Good morning", "tgt_lang": "igbo"}'
 ```
 
-Apps already written for OpenAI or Whisper audio work by changing the base URL:
+Full contract: [docs/api-contract.md](docs/api-contract.md).
+
+### OpenAI-compatible audio
+
+Apps already written for the OpenAI or Whisper audio APIs work by changing the base URL:
 
 ```python
 from openai import OpenAI
@@ -100,87 +103,125 @@ client = OpenAI(base_url="http://127.0.0.1:8000/v1", api_key="local")
 client.audio.transcriptions.create(model="afrilingua", file=open("sermon.wav", "rb"), language="yo")
 ```
 
-Full contract: [docs/api-contract.md](docs/api-contract.md).
-
-### 3. As an MCP server for AI agents
+### MCP, for AI agents
 
 ```json
 { "mcpServers": { "afrilingua": { "command": "afrilingua", "args": ["mcp"] } } }
 ```
 
-Agents get tools such as `translate_text`, `transcribe_audio`, `synthesize_speech`, `translate_speech`, `search_translation_memory` and `create_live_room`. All of them run locally. See [docs/mcp.md](docs/mcp.md).
+Agents get tools such as `translate_text`, `translate_batch`, `detect_language`, `transcribe_audio`, `synthesize_speech`, `translate_speech` and `search_translation_memory`. All of them run locally.
 
-### 4. Live interpretation app
+### Live interpretation app
 
 ```bash
-afrilingua serve --lan      # set API_KEYS first when exposing on a network
+afrilingua serve --lan            # set API_KEYS first, see "Security model"
 ```
 
-Open the web app, create a room and share the QR code. Listeners pick their language on their phones and get live captions and audio. Projector mode shows large two-language captions.
+Open the web app and create a room, then share the QR code. Listeners follow on their phones with captions and an optional voice in their language. Projector mode shows large captions in two languages.
 
-## Speed and accuracy
+## Speed
 
-These are the two things we optimise for and measure on every release. **We do not publish a number we cannot reproduce.** Run `afrilingua bench` on your own machine.
+Speed is the first thing we optimise. **Every number below was measured, and you can reproduce it** with `afrilingua bench`.
 
-**How it stays fast on a CPU**
+Measured 19 Nov 2026 on a Ryzen 9 5900HS laptop (8 cores), CPU only, int8, 8 threads. The laptop was **on battery and running other work**, so expect faster results when plugged in.
 
-- **int8 inference everywhere it matters.** Translation runs on CTranslate2, English speech recognition on faster-whisper, and voice/TTS on ONNX Runtime.
-- **Translation memory with vector search.** Previously approved translations come back in about a millisecond, before any model runs. Repeated phrases (agendas, liturgy, speaker names, medical terms) are instant and consistent.
-- **One shared model manager.** Every request, room and agent call reuses the same loaded models. Models load lazily and idle ones are evicted.
-- **Streaming pipeline.** Voice activity detection cuts speech at natural pauses, and captions are never blocked by speech synthesis.
+| Operation | Median | p95 |
+|---|---|---|
+| Approved phrase from translation memory (exact, 5,000 entries) | **0.12 ms** | 0.19 ms |
+| Similar-sentence lookup in translation memory (5,000 entries) | 1.9 ms | 2.8 ms |
+| Sentence already translated this session | 0.05 ms | |
+| Language detection | 0.10 ms | 0.18 ms |
+| New sentence, English → Igbo | 730 ms | 1.19 s |
+| New sentence, English → Hausa | 773 ms | 1.15 s |
+| New sentence, English → Yoruba | 1.10 s | 1.63 s |
+| Memory with translation loaded for three languages | 2.0 GB | |
 
-**Targets for a modern 8-core laptop CPU** (measured results will replace this table in [docs/benchmarks.md](docs/benchmarks.md)):
+**How it stays fast**
 
-| Stage | Target |
+- **Most sentences never reach the model.** Conferences, clinics and churches repeat themselves. Approved translations are answered from translation memory in a fraction of a millisecond, and so are repeats within a session.
+- **int8 everywhere it matters.** Translation runs on CTranslate2, English speech on faster-whisper, and voice on ONNX Runtime.
+- **One warm model manager.** Every request, room and agent shares the same loaded models. Languages load lazily and idle models are released.
+- **Greedy decoding for live speech, beam search only for documents.**
+
+**What comes next for speed:** vocabulary-restricted decoding per target language (the model's 256k-token output layer dominates CPU time), a smaller distilled student model, and published numbers for plugged-in, idle and low-end (4-core, 8 GB) machines. See [docs/benchmarks.md](docs/benchmarks.md).
+
+## Accuracy
+
+- **Strong open baselines.** Meta NLLB-200 for translation, MMS for African-language speech, Whisper for English.
+- **Corrections apply on the next request.** An approved correction becomes a translation-memory entry and is served exactly as written.
+- **A new model ships only if it wins.** Fine-tuned models must beat the current one on held-out data: chrF++ on FLORES-200 for text, WER on FLEURS for speech. FLORES is never used for training.
+- **Tone marks survive.** Yoruba tone marks and Igbo dot-below letters are normalised before translation and speech, so *ọkọ*, *ọkọ̀* and *ọ̀kọ̀* stay three different words.
+
+Published scores per language pair will accompany each model pack release.
+
+## Train it on your data
+
+Already have translated text? Upload any parallel text you have. AfriLingua aligns, cleans and balances it, then fine-tunes on it.
+
+| Formats | How it is aligned |
 |---|---|
-| Translation, one sentence (int8, greedy) | 150–400 ms |
-| Translation memory hit | under 5 ms |
-| End of speech → caption on screen | about 1–1.5 s |
-| End of speech → translated audio | about 1.5–2.5 s |
-| RAM with 4 languages loaded | about 2.5–3.5 GB |
+| TMX, CSV, TSV, JSONL, line-aligned text | Row by row, matching language codes |
+| SRT, WebVTT | By timestamp overlap, including 1:2 and 2:1 cue merges |
+| USFM, eBible verse files | By chapter and verse reference |
+| Plain text, not pre-aligned | Sentence-split and length-aligned automatically, keeping only confident pairs |
 
-**How accuracy improves**
+```bash
+# Import a tab-separated file of English / Yoruba pairs
+afrilingua corpora import phrases.tsv --format tsv --from english --to yoruba \
+  --source-name "Clinic phrasebook" --license CC-BY-4.0 --domain medical
 
-- Strong open baselines: Meta NLLB-200 for translation, MMS for African-language speech, Whisper for English.
-- **Community corrections become approved translation-memory entries immediately**, and become training data for the next model pack.
-- Fine-tuning (LoRA for translation, adapters for speech) runs on community data, with an **evaluation gate**: a new model ships only if it beats the current one on held-out data.
-- Published per release: chrF++ / BLEU on FLORES-200 devtest and WER on FLEURS, per language pair. FLORES is never used for training.
+# Build deduplicated, domain-balanced splits (no domain over 40%), then fine-tune with LoRA
+afrilingua train splits --lang yoruba --max-domain-share 0.4
+afrilingua train mt --data-dir data/processed
+```
+
+Every corpus records its source, licence and domain. Cleaning drops duplicates, URLs, emails, wrong-language lines and bad length ratios. Domain capping stops any single kind of text from dominating the model.
+
+**Only import text you have the right to use.** `--commercial-safe` builds leave out research-only and share-alike data. Uploaded corpora will require a second person's approval before they reach translation memory or training (in progress; see [Security model](#security-model)).
+
+Corpora can also be uploaded over the API (`POST /api/v1/datasets`) or from the web app.
 
 ## Languages
 
 | Language | Translate | Speech → text | Text → speech |
 |---|---|---|---|
 | English | ✓ | ✓ | ✓ |
-| Igbo | ✓ | ✓ | ✓ |
 | Yoruba | ✓ | ✓ | ✓ |
+| Igbo | ✓ | ✓ | ✓ |
 | Hausa | ✓ | ✓ | ✓ |
 
-Add a language without code changes. Any language covered by NLLB-200 and MMS (hundreds of them) can be registered:
+Any of the 200 languages NLLB-200 covers can be added without code changes. Speech support follows once there are recordings:
 
 ```bash
 AFRILINGUA_EXTRA_LANGUAGES='[{"name":"swahili","nllb_code":"swh_Latn","mms_asr_code":"swh","mms_tts_model":"facebook/mms-tts-swh","aliases":["sw"]}]'
 ```
 
-## Help train it
+## Community
 
-Pre-trained models only go so far for African languages, especially with accents, dialects and tone. The community hub in the app lets speakers:
+Speakers can translate prompt sentences, correct machine output, record their voice tagged with dialect and region (for example Ọ̀yọ́, Ìjẹ̀bú, Owerri, Onitsha, Kano, Sokoto) and review other people's work.
 
-- translate prompt sentences and correct machine output,
-- record their voice, tagged with dialect and region (for example Ọ̀yọ́, Ìjẹ̀bú, Owerri, Onitsha, Kano, Sokoto),
-- review other people's contributions (two approvals publish an entry).
+Contributions are licensed **CC-BY-4.0** by default, or CC0 if you prefer, and are credited. They stay on your device until you choose to share them. Voice recordings are never used for voice cloning without a separate opt-in.
 
-Contributions are licensed **CC-BY-4.0** by default (CC0 optional), are credited, and stay on your device until you choose to share them. Voice recordings are never used for voice cloning without a separate opt-in. See [docs/community.md](docs/community.md).
+## Security model
+
+AfriLingua is built to run on your own machine, so the defaults assume a single trusted user:
+
+- **The server binds to `127.0.0.1` and has no authentication by default.** Anything that can reach the port can translate, approve and delete translation-memory entries, import data and read contributions.
+- **Set `API_KEYS` before you use `--lan` or expose the server anywhere.** Treat every key as an administrator credential.
+- **A web page in your browser can reach `127.0.0.1`.** Until Origin and Host checks land, close untrusted tabs or set `API_KEYS` while the server runs.
+
+A source review in November 2026 found issues in this area that are being fixed. They include no Origin/Host validation on the REST API, unauthenticated approval of translation-memory entries, no attempt limit on room PINs, no decoded-size limits on audio and DOCX uploads, and fuzzy translation-memory matches being served as exact. Please report security issues privately to the maintainers rather than in public issues.
 
 ## Configuration
 
-Everything is optional and set through environment variables or `.env`; see [.env.example](.env.example). Common ones:
+Everything is optional and set through environment variables or `.env`. See [.env.example](.env.example).
 
 | Variable | Default | Purpose |
 |---|---|---|
-| `AFRILINGUA_PROFILE` | `auto` | `cpu-lite` (≤8 GB RAM), `cpu-standard` or `gpu` |
+| `AFRILINGUA_PROFILE` | `auto` | `cpu-lite` (8 GB RAM or less), `cpu-standard` or `gpu` |
 | `DEVICE` | `auto` | `cpu` or `cuda` |
 | `AFRILINGUA_OFFLINE` | `0` | `1` = never touch the network |
-| `API_KEYS` | empty | Required before exposing the server on a network |
+| `API_KEYS` | empty | Comma-separated keys. Required before exposing the server |
 | `MODEL_NLLB` | from profile | Swap the translation model |
 
 ## Architecture
@@ -189,26 +230,27 @@ Everything is optional and set through environment variables or `.env`; see [.en
 afrilingua/
   core/        settings, hardware profiles, language registry
   backends/    CTranslate2 / Transformers MT, faster-whisper & MMS ASR, MMS TTS, VAD, language ID
-  models/      shared model manager (lazy loading, per-model locks)
-  engine.py    facade: normalize → cache → translation memory → MT; ASR; TTS
-  pipeline/    streaming interpretation sessions
+  models/      shared model manager (lazy loading, per-model locks), model downloads
+  engine.py    normalize → cache → translation memory → MT; ASR; TTS
   tm/          translation memory and vector index
+  training/    corpus import and alignment, dataset splits, LoRA / adapter training, evaluation
   contrib/     community contributions, review, export
+  pipeline/    streaming interpretation sessions
   api/  mcp/   REST, WebSocket rooms, OpenAI-compatible routes, MCP server
-web/           React app: interpretation, translation, community hub
+web/           web app (Vike + React): landing, translate, documents, live rooms, community
 ```
 
 Details: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
 ## Licensing
 
-- **Code**: MIT.
-- **Models**: AfriLingua downloads third-party models with their own licenses. **NLLB-200 and MMS are CC-BY-NC 4.0 (non-commercial).** Whisper is MIT. If you plan commercial use, review these licenses. A commercial-friendly model pack built on Apache-2.0 models is on the roadmap.
-- **Community data**: CC-BY-4.0 by default.
+- **Code:** MIT.
+- **Models:** AfriLingua downloads third-party models under their own licences. **NLLB-200 and MMS are CC-BY-NC 4.0 (non-commercial).** Whisper is MIT. Review these before commercial use. A commercial-friendly model pack built on Apache-2.0 models is on the roadmap.
+- **Community data:** CC-BY-4.0 by default.
 
 ## Contributing
 
-Bug reports, language data, benchmarks on your hardware and code are all welcome. See [CONTRIBUTING.md](CONTRIBUTING.md). Quick dev setup:
+Bug reports, language data, benchmark results from your hardware and code are all welcome. See [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ```bash
 git clone https://github.com/fegig/AfriLingua.git && cd AfriLingua
@@ -220,12 +262,15 @@ pnpm --dir web install && pnpm --dir web dev
 
 ## Roadmap
 
-- Measured benchmarks per release, for CPU-lite and GPU profiles
+- **Speed:** vocabulary-restricted decoding, a distilled student model, and published numbers for 4-core / 8 GB machines
+- **Accuracy:** published chrF++ and WER per language pair with every model pack
+- **Security:** Origin/Host validation, reviewer-only approval, PIN rate limits, upload decode limits
 - Signed, versioned model packs (`afrilingua pull yoruba`), including domain packs (medical, legal, faith)
-- Commercial-friendly model pack (Omnilingual ASR, MADLAD-400)
-- Desktop installer for Windows and macOS
-- More languages: Swahili, Pidgin, Twi, Amharic, Zulu, Fula
-- Code-switching (English mixed with Yoruba, Igbo or Hausa in one sentence)
+- A commercial-friendly model pack (Omnilingual ASR, MADLAD-400)
+- Native desktop app with installers for Windows and macOS (today: `afrilingua desktop`)
+- Live captions inside meetings: Google Meet, Zoom and Microsoft Teams integrations
+- More languages: Swahili, Nigerian Pidgin, Twi, Amharic, Zulu, Fula
+- Code-switching: English mixed with Yoruba, Igbo or Hausa in one sentence
 
 ## Acknowledgements
 
