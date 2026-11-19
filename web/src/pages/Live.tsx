@@ -243,7 +243,7 @@ function RoomSetup({ onCreated }: { onCreated: (r: HostRoom) => void }) {
             <ul className="mt-4 space-y-3 text-[14.5px] leading-relaxed text-ink-muted">
               <li>Put the laptop and listeners on the same Wi-Fi network or phone hotspot. No internet is needed.</li>
               <li>A lapel or podium microphone beats the laptop's built-in mic in a noisy room.</li>
-              <li>Open this page through the laptop's network address so phones can reach the join link.</li>
+              <li>Start the engine listening on your local network so phones can reach the join link.</li>
               <li>Ask listeners to bring earphones if they want audio.</li>
             </ul>
           </div>
@@ -517,8 +517,8 @@ function HostConsole({ room, onEnd }: { room: HostRoom; onEnd: () => void }) {
               {join.loopbackOnly && (
                 <p className="mt-4 flex items-start gap-2 rounded-2xl bg-ochre-soft p-3 text-left text-[13px] leading-snug text-fg">
                   <Info className="mt-0.5 size-4 shrink-0" strokeWidth={1.75} />
-                  Phones cannot open a localhost address. Open this console at the laptop's network IP (for example
-                  http://192.168.1.20:8000) and start the engine listening on your network.
+                  Phones cannot open a localhost address. Start the engine so it listens on your local network; the join link
+                  then uses this laptop's network address.
                 </p>
               )}
               <div className="mt-5 flex w-full flex-wrap justify-center gap-2">
