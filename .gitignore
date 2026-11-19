@@ -93,3 +93,5 @@ web/node_modules/
 web/dist/
 .venv/
 uv.lock.bak
+
+*_results.txt
