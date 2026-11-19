@@ -1,14 +1,15 @@
 """Speech: transcription (any common audio format) and synthesis."""
+
 from __future__ import annotations
 
-from typing import Any
+from typing import Annotated, Any
 
-from fastapi import APIRouter, Depends, File, Form, UploadFile
+from fastapi import APIRouter, File, Form, UploadFile
 from fastapi.responses import Response
 from starlette.concurrency import run_in_threadpool
 
 from afrilingua.api.audio_io import AUDIO_MEDIA_TYPES, decode_audio, encode_audio
-from afrilingua.api.deps import get_engine
+from afrilingua.api.deps import EngineDep
 from afrilingua.api.schemas import ERROR_RESPONSES, SpeechRequest, TranscriptModel
 from afrilingua.backends.base import Transcript
 from afrilingua.engine import AfriLinguaEngine
@@ -49,9 +50,11 @@ async def transcribe_upload(engine: AfriLinguaEngine, file: UploadFile, lang: st
     summary="Transcribe an audio file (wav/mp3/ogg/webm/flac)",
 )
 async def transcribe(
-    file: UploadFile = File(..., description="Audio file (wav, mp3, ogg, flac; webm/opus/m4a need PyAV)."),
-    lang: str = Form("english", description="Spoken language (name or alias)."),
-    engine: AfriLinguaEngine = Depends(get_engine),
+    file: Annotated[
+        UploadFile, File(description="Audio file (wav, mp3, ogg, flac; webm/opus/m4a need PyAV).")
+    ],
+    engine: EngineDep,
+    lang: Annotated[str, Form(description="Spoken language (name or alias).")] = "english",
 ) -> dict[str, Any]:
     return transcript_to_dict(await transcribe_upload(engine, file, lang))
 
@@ -62,7 +65,7 @@ async def transcribe(
     response_class=Response,
     summary="Synthesize speech (returns audio/wav bytes)",
 )
-async def speech(body: SpeechRequest, engine: AfriLinguaEngine = Depends(get_engine)) -> Response:
+async def speech(body: SpeechRequest, engine: EngineDep) -> Response:
     lang = engine.registry.normalize(body.lang)
     audio = await run_in_threadpool(engine.synthesize, body.text, lang)
     data = await run_in_threadpool(encode_audio, audio.waveform, audio.sample_rate, body.format)

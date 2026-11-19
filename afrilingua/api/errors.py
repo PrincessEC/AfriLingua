@@ -4,6 +4,7 @@ Every JSON endpoint returns errors as ``{"error": {"code": "...", "message": "..
 (docs/api-contract.md). Under ``/v1`` an OpenAI-style ``type`` field is added so the
 official OpenAI SDKs surface the message nicely.
 """
+
 from __future__ import annotations
 
 import logging
@@ -50,15 +51,21 @@ def not_found(what: str) -> APIError:
 def error_body(code: str, message: str, *, openai: bool = False, **extra: Any) -> dict[str, Any]:
     err: dict[str, Any] = {"code": code, "message": message}
     if openai:
-        err["type"] = "invalid_request_error" if code not in {"internal_error", "model_load_failed"} else "server_error"
+        err["type"] = (
+            "invalid_request_error" if code not in {"internal_error", "model_load_failed"} else "server_error"
+        )
     err.update({k: v for k, v in extra.items() if v is not None})
     return {"error": err}
 
 
-def error_response(status: int, code: str, message: str, request: Request | None = None, **extra: Any) -> JSONResponse:
+def error_response(
+    status: int, code: str, message: str, request: Request | None = None, **extra: Any
+) -> JSONResponse:
     openai = bool(request is not None and request.url.path.startswith("/v1"))
     headers = {"WWW-Authenticate": "Bearer"} if status == 401 else None
-    return JSONResponse(error_body(code, message, openai=openai, **extra), status_code=status, headers=headers)
+    return JSONResponse(
+        error_body(code, message, openai=openai, **extra), status_code=status, headers=headers
+    )
 
 
 def install_exception_handlers(app: FastAPI) -> None:

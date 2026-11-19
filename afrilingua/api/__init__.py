@@ -3,6 +3,7 @@
 ``create_app`` is imported lazily so that ``afrilingua.api.routers.*`` modules can be
 imported without pulling in the whole application (and to avoid import cycles).
 """
+
 from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any

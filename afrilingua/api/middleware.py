@@ -4,6 +4,7 @@
 * :class:`APIKeyMiddleware` enforces ``API_KEYS`` (only when configured).
 * :class:`BodySizeLimitMiddleware` rejects bodies above ``MAX_UPLOAD_MB`` with 413.
 """
+
 from __future__ import annotations
 
 import json
@@ -68,7 +69,9 @@ def path_requires_auth(path: str, method: str, scope_type: str) -> bool:
     return not (scope_type == "http" and method == "OPTIONS")
 
 
-async def send_json(send: Send, status: int, body: dict[str, Any], extra_headers: list[tuple[bytes, bytes]] | None = None) -> None:
+async def send_json(
+    send: Send, status: int, body: dict[str, Any], extra_headers: list[tuple[bytes, bytes]] | None = None
+) -> None:
     payload = json.dumps(body).encode()
     headers = [(b"content-type", b"application/json"), (b"content-length", str(len(payload)).encode())]
     headers += extra_headers or []
@@ -82,7 +85,9 @@ async def reject_websocket(receive: Receive, send: Send, code: str, message: str
     if msg["type"] != "websocket.connect":
         return
     await send({"type": "websocket.accept"})
-    await send({"type": "websocket.send", "text": json.dumps({"type": "error", "code": code, "message": message})})
+    await send(
+        {"type": "websocket.send", "text": json.dumps({"type": "error", "code": code, "message": message})}
+    )
     await send({"type": "websocket.close", "code": close_code, "reason": code})
 
 
@@ -102,12 +107,16 @@ class APIKeyMiddleware:
         if key_is_valid(extract_api_key(scope), self.keys):
             await self.app(scope, receive, send)
             return
-        message = "Missing or invalid API key. Send 'Authorization: Bearer <key>' (or ?key=<key> for WebSockets)."
+        message = (
+            "Missing or invalid API key. Send 'Authorization: Bearer <key>' (or ?key=<key> for WebSockets)."
+        )
         if scope["type"] == "websocket":
             await reject_websocket(receive, send, "unauthorized", message, 4401)
             return
         openai = path.startswith("/v1")
-        await send_json(send, 401, error_body("unauthorized", message, openai=openai), [(b"www-authenticate", b"Bearer")])
+        await send_json(
+            send, 401, error_body("unauthorized", message, openai=openai), [(b"www-authenticate", b"Bearer")]
+        )
 
 
 class _TooLarge(Exception):

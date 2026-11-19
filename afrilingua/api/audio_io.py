@@ -7,6 +7,7 @@
 Prefers ``afrilingua.audio`` helpers when the engine workstream provides them, but
 works standalone with ``soundfile`` + numpy.
 """
+
 from __future__ import annotations
 
 import io
@@ -136,7 +137,9 @@ def encode_audio(waveform: np.ndarray, sample_rate: int, fmt: str = "wav") -> by
     try:
         sf.write(buf, audio, int(sample_rate), **options)
     except Exception as exc:
-        raise CapabilityUnavailableError(f"Audio format {fmt!r} is not supported by this build: {exc}") from exc
+        raise CapabilityUnavailableError(
+            f"Audio format {fmt!r} is not supported by this build: {exc}"
+        ) from exc
     return buf.getvalue()
 
 

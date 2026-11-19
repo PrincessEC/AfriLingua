@@ -1,15 +1,15 @@
 """System endpoints: health, status, languages."""
+
 from __future__ import annotations
 
 from typing import Any
 
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Request
 from starlette.concurrency import run_in_threadpool
 
 from afrilingua import __version__
-from afrilingua.api.deps import get_engine
+from afrilingua.api.deps import EngineDep
 from afrilingua.api.schemas import HealthResponse
-from afrilingua.engine import AfriLinguaEngine
 
 router = APIRouter(prefix="/api/v1", tags=["system"])
 
@@ -20,7 +20,7 @@ async def health() -> dict[str, str]:
 
 
 @router.get("/status", summary="Runtime, hardware, model and language status")
-async def status(request: Request, engine: AfriLinguaEngine = Depends(get_engine)) -> dict[str, Any]:
+async def status(request: Request, engine: EngineDep) -> dict[str, Any]:
     data: dict[str, Any] = await run_in_threadpool(engine.status)
     rooms = getattr(request.app.state, "rooms", None)
     jobs = getattr(request.app.state, "jobs", None)
@@ -35,5 +35,5 @@ async def status(request: Request, engine: AfriLinguaEngine = Depends(get_engine
 
 
 @router.get("/languages", summary="Supported languages")
-async def languages(engine: AfriLinguaEngine = Depends(get_engine)) -> dict[str, list[dict[str, Any]]]:
+async def languages(engine: EngineDep) -> dict[str, list[dict[str, Any]]]:
     return {"languages": [spec.to_public_dict() for spec in engine.registry]}

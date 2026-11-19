@@ -1,9 +1,10 @@
 """Shared FastAPI dependencies."""
+
 from __future__ import annotations
 
-from typing import Any
+from typing import Annotated, Any
 
-from fastapi import Request
+from fastapi import Depends, Request
 
 from afrilingua.api.errors import APIError
 from afrilingua.engine import AfriLinguaEngine
@@ -14,6 +15,9 @@ def get_engine(request: Request) -> AfriLinguaEngine:
     if engine is None:
         raise APIError(503, "unavailable", "The engine is still starting up; retry in a moment.")
     return engine
+
+
+EngineDep = Annotated[AfriLinguaEngine, Depends(get_engine)]
 
 
 def get_state(request: Request, name: str) -> Any:

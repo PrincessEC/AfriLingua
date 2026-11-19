@@ -3,6 +3,7 @@
 Small thread pool; state in memory + ``<data_dir>/jobs/<id>/job.json`` so finished
 jobs survive a restart. Jobs (and their files) are removed after 24 h.
 """
+
 from __future__ import annotations
 
 import contextlib
@@ -109,7 +110,11 @@ class JobManager:
                 logger.warning("Skipping unreadable job file %s", meta)
                 continue
             if job.status in {"queued", "running"}:
-                job.status, job.error, job.error_code = "error", "Interrupted by a server restart.", "interrupted"
+                job.status, job.error, job.error_code = (
+                    "error",
+                    "Interrupted by a server restart.",
+                    "interrupted",
+                )
                 self._save(job)
             self._jobs[job.id] = job
         self.cleanup()
@@ -128,7 +133,9 @@ class JobManager:
         try:
             _ = self.translator
         except ImportError as exc:
-            raise CapabilityUnavailableError(f"Document translation is not available in this build: {exc}") from exc
+            raise CapabilityUnavailableError(
+                f"Document translation is not available in this build: {exc}"
+            ) from exc
 
     def submit(self, filename: str, data: bytes, tgt_lang: str, src_lang: str | None = None) -> Job:
         self.ensure_available()
@@ -182,7 +189,12 @@ class JobManager:
             out_dir = self._job_dir(job.id) / "out"
             out_dir.mkdir(parents=True, exist_ok=True)
             result = self.translator(
-                self.engine, Path(job.src_path), out_dir, job.tgt_lang, src_lang=job.src_lang, on_progress=on_progress
+                self.engine,
+                Path(job.src_path),
+                out_dir,
+                job.tgt_lang,
+                src_lang=job.src_lang,
+                on_progress=on_progress,
             )
             job.result_path = str(result)
             job.status, job.progress = "done", 1.0

@@ -1,4 +1,5 @@
 """Pydantic request/response models (drive the OpenAPI docs at /docs)."""
+
 from __future__ import annotations
 
 from typing import Literal
@@ -56,7 +57,12 @@ class TranslateRequest(BaseModel):
         json_schema_extra={
             "examples": [
                 {"text": "Good morning, how are you?", "src_lang": "english", "tgt_lang": "yoruba"},
-                {"texts": ["Thank you", "Welcome"], "src_lang": "auto", "tgt_lang": "igbo", "mode": "document"},
+                {
+                    "texts": ["Thank you", "Welcome"],
+                    "src_lang": "auto",
+                    "tgt_lang": "igbo",
+                    "mode": "document",
+                },
             ]
         }
     )
@@ -65,7 +71,9 @@ class TranslateRequest(BaseModel):
     text: str | None = Field(None, description="Single text (alternative to `texts`).")
     src_lang: str | None = Field("auto", description="Source language name/alias, or `auto` to detect.")
     tgt_lang: str = Field(description="Target language name or alias (e.g. `yoruba`, `yo`, `yor_Latn`).")
-    mode: Literal["live", "document"] = Field("live", description="`live` = greedy/fast, `document` = beam search.")
+    mode: Literal["live", "document"] = Field(
+        "live", description="`live` = greedy/fast, `document` = beam search."
+    )
     use_tm: bool = Field(True, description="Consult the translation memory first.")
 
     @model_validator(mode="after")
@@ -108,7 +116,9 @@ class TranscriptModel(BaseModel):
 
 
 class SpeechRequest(BaseModel):
-    model_config = ConfigDict(json_schema_extra={"examples": [{"text": "Ẹ káàbọ̀", "lang": "yoruba", "format": "wav"}]})
+    model_config = ConfigDict(
+        json_schema_extra={"examples": [{"text": "Ẹ káàbọ̀", "lang": "yoruba", "format": "wav"}]}
+    )
     text: str = Field(min_length=1, max_length=5000)
     lang: str
     format: Literal["wav", "flac", "pcm"] = "wav"
@@ -136,7 +146,14 @@ class JobStatus(BaseModel):
 class RoomCreate(BaseModel):
     model_config = ConfigDict(
         json_schema_extra={
-            "examples": [{"title": "Town hall", "src_lang": "english", "targets": ["yoruba", "igbo", "hausa"], "pin": "4821"}]
+            "examples": [
+                {
+                    "title": "Town hall",
+                    "src_lang": "english",
+                    "targets": ["yoruba", "igbo", "hausa"],
+                    "pin": "4821",
+                }
+            ]
         }
     )
     title: str = Field("Live session", max_length=200)
@@ -151,7 +168,9 @@ class RoomCreated(BaseModel):
     join_url: str = Field(examples=["http://127.0.0.1:8000/room/kq7-m2x"])
     host_ws: str = Field(description="Relative host WebSocket path (add `?token=`).")
     listen_ws: str = Field(description="Relative listener WebSocket path (add `?lang=&audio=&pin=`).")
-    lan_join_url: str | None = Field(None, description="Join URL using this machine's LAN IP (when serving on the LAN).")
+    lan_join_url: str | None = Field(
+        None, description="Join URL using this machine's LAN IP (when serving on the LAN)."
+    )
 
 
 class RoomInfo(BaseModel):
