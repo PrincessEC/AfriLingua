@@ -26,6 +26,7 @@ Both persist to a directory (``.npy`` arrays + ``ids.json`` + ``meta.json``) wit
 atomic replace, and raise on any inconsistency when loading so the caller can
 rebuild from SQLite.
 """
+
 from __future__ import annotations
 
 import json
@@ -108,7 +109,7 @@ class CharNgramIndex:
         dim: int = DEFAULT_DIM,
         *,
         delta_capacity: int = 1024,
-        posting_budget: int = 200_000,
+        posting_budget: int = 20_000,
     ) -> None:
         self.dim = dim
         self.delta_capacity = delta_capacity
@@ -183,7 +184,9 @@ class CharNgramIndex:
         if row >= self._n_main:
             self._delta[row - self._n_main] = 0.0
 
-    def _append_delta(self, ids: Sequence[str], indptr: np.ndarray, dims: np.ndarray, vals: np.ndarray) -> None:
+    def _append_delta(
+        self, ids: Sequence[str], indptr: np.ndarray, dims: np.ndarray, vals: np.ndarray
+    ) -> None:
         if self._delta.shape[0] < self.delta_capacity:
             grown = np.zeros((self.delta_capacity, self.dim), dtype=np.float32)
             grown[: self._n_delta] = self._delta[: self._n_delta]
@@ -239,7 +242,9 @@ class CharNgramIndex:
         dims_sorted = dims[order]
         self._crow = rows[order].astype(np.int32)
         self._cval = vals[order].astype(np.float32)
-        counts = np.bincount(dims_sorted, minlength=self.dim) if dims_sorted.size else np.zeros(self.dim, np.int64)
+        counts = (
+            np.bincount(dims_sorted, minlength=self.dim) if dims_sorted.size else np.zeros(self.dim, np.int64)
+        )
         self._colptr = np.concatenate(([0], np.cumsum(counts))).astype(np.int64)
         self._ids = [i for i, a in zip(new_ids, alive_ext.tolist(), strict=True) if a]
         self._row = {entry_id: r for r, entry_id in enumerate(self._ids)}
@@ -265,7 +270,9 @@ class CharNgramIndex:
                 lengths = self._colptr[qdi + 1] - starts
                 order = np.argsort(lengths, kind="stable")
                 cum = np.cumsum(lengths[order])
-                take = int(np.searchsorted(cum, self.posting_budget, side="right"))
+                # Small/medium indexes: use every bucket (exact cosine). Large: rarest-first budget.
+                budget = int(cum[-1]) if cum[-1] <= 6 * self.posting_budget else self.posting_budget
+                take = int(np.searchsorted(cum, budget, side="right"))
                 take = max(take, min(len(order), 1))
                 sel = order[:take]
                 sel = sel[lengths[sel] > 0]
@@ -274,8 +281,15 @@ class CharNgramIndex:
                     vals = np.concatenate([self._cval[starts[i] : starts[i] + lengths[i]] for i in sel])
                     vals *= np.repeat(qv[sel], lengths[sel])
                     acc = np.bincount(rows, weights=vals, minlength=self._n_main)
-                    touched = np.flatnonzero(acc)
-                    cand_rows.append(touched)
+                    # Pick candidates among the touched rows only (avoids an O(N) selection).
+                    touched_scores = acc[rows]
+                    pool = min(rows.shape[0], 8 * n)
+                    if pool < rows.shape[0]:
+                        part = np.argpartition(touched_scores, rows.shape[0] - pool)[rows.shape[0] - pool :]
+                        touched = np.unique(rows[part])
+                    else:
+                        touched = np.unique(rows)
+                    cand_rows.append(touched.astype(np.int64))
                     cand_scores.append(acc[touched])
             if self._n_delta:
                 ds = self._delta[: self._n_delta][:, qd.astype(np.int64)] @ qv
@@ -307,8 +321,13 @@ class CharNgramIndex:
             _atomic_save_npy(directory / "rows.npy", self._crow)
             _atomic_save_npy(directory / "vals.npy", self._cval)
             _atomic_write_text(directory / "ids.json", json.dumps(self._ids))
-            meta = {"kind": "char-ngram", "version": _FORMAT_VERSION, "dim": self.dim, "n": len(self._ids),
-                    "nnz": int(self._crow.shape[0])}
+            meta = {
+                "kind": "char-ngram",
+                "version": _FORMAT_VERSION,
+                "dim": self.dim,
+                "n": len(self._ids),
+                "nnz": int(self._crow.shape[0]),
+            }
             _atomic_write_text(directory / "meta.json", json.dumps(meta))
             self.dirty = False
 

@@ -11,7 +11,7 @@ Lookup path for ``search(query, src, tgt, k)``:
 1. **Exact**: the normalised key (:func:`~afrilingua.tm.text.tm_key`) is looked up
    through the unique ``(src_lang, tgt_lang, source_norm, target)`` index:
    sub-millisecond, score 1.0, approved entries first. Short-circuits.
-2. **Fuzzy**: the char n-gram index proposes ``max(4k, 32)`` candidates (one sparse
+2. **Fuzzy**: the char n-gram index proposes ``max(4k, 16)`` candidates (one sparse
    mat-vec), which are reranked with rapidfuzz (``ratio`` / ``token_set_ratio``
    blend). Non-exact matches are capped at 0.99 so only a true normalised match
    can reach 1.0.
@@ -23,8 +23,10 @@ stale ids removed) and rebuilt from SQLite if the files are corrupt, so SQLite i
 always the source of truth. Indexes are persisted on :meth:`TranslationMemory.flush`
 / :meth:`~TranslationMemory.close`, after imports and after a rebuild.
 """
+
 from __future__ import annotations
 
+import contextlib
 import json
 import logging
 import shutil
@@ -74,7 +76,9 @@ CREATE UNIQUE INDEX IF NOT EXISTS ux_entries_dedupe ON entries (src_lang, tgt_la
 CREATE INDEX IF NOT EXISTS ix_entries_approved ON entries (approved);
 """
 
-_COLUMNS = "id, src_lang, tgt_lang, source, source_norm, target, approved, origin, created_at, updated_at, uses"
+_COLUMNS = (
+    "id, src_lang, tgt_lang, source, source_norm, target, approved, origin, created_at, updated_at, uses"
+)
 
 
 def _now() -> str:
@@ -193,7 +197,9 @@ class TranslationMemory:
     def _pair_rows(self, src: str, tgt: str, ids: Iterable[str] | None = None) -> list[tuple[str, str]]:
         with self._conn() as conn:
             if ids is None:
-                cur = conn.execute("SELECT id, source_norm FROM entries WHERE src_lang=? AND tgt_lang=?", (src, tgt))
+                cur = conn.execute(
+                    "SELECT id, source_norm FROM entries WHERE src_lang=? AND tgt_lang=?", (src, tgt)
+                )
                 return [(r[0], r[1]) for r in cur]
             out: list[tuple[str, str]] = []
             id_list = list(ids)
@@ -220,8 +226,13 @@ class TranslationMemory:
             index = CharNgramIndex(self.dim)
             index.add([r[0] for r in rows], [base_form(r[1]) for r in rows])
             if rows:
-                logger.info("Built TM index %s→%s: %d entries in %.0f ms", src, tgt, len(rows),
-                            (time.perf_counter() - t0) * 1000)
+                logger.info(
+                    "Built TM index %s→%s: %d entries in %.0f ms",
+                    src,
+                    tgt,
+                    len(rows),
+                    (time.perf_counter() - t0) * 1000,
+                )
                 self._safe_save(index, directory)
             return index
         self._reconcile(index, src, tgt)
@@ -229,15 +240,20 @@ class TranslationMemory:
 
     def _reconcile(self, index: CharNgramIndex | DenseIndex, src: str, tgt: str) -> None:
         with self._conn() as conn:
-            db_ids = {r[0] for r in conn.execute("SELECT id FROM entries WHERE src_lang=? AND tgt_lang=?", (src, tgt))}
+            db_ids = {
+                r[0]
+                for r in conn.execute("SELECT id FROM entries WHERE src_lang=? AND tgt_lang=?", (src, tgt))
+            }
         have = index.ids()
         for stale in have - db_ids:
             index.remove(stale)
         missing = db_ids - have
         if missing:
             rows = self._pair_rows(src, tgt, missing)
-            index.add([r[0] for r in rows], [base_form(r[1]) if isinstance(index, CharNgramIndex) else r[1]
-                                             for r in rows])
+            index.add(
+                [r[0] for r in rows],
+                [base_form(r[1]) if isinstance(index, CharNgramIndex) else r[1] for r in rows],
+            )
         if missing or (have - db_ids):
             logger.info("Reconciled TM index %s→%s (+%d / -%d)", src, tgt, len(missing), len(have - db_ids))
 
@@ -253,7 +269,11 @@ class TranslationMemory:
             if idx is None:
                 directory = self._semantic_dir(src, tgt)
                 try:
-                    idx = DenseIndex.load(directory, self.embedder) if (directory / "meta.json").exists() else None
+                    idx = (
+                        DenseIndex.load(directory, self.embedder)
+                        if (directory / "meta.json").exists()
+                        else None
+                    )
                 except IndexCorruptError as exc:
                     logger.warning("Semantic TM index unusable (%s); rebuilding", exc)
                     idx = None
@@ -323,7 +343,9 @@ class TranslationMemory:
             return 0
         return len(self._upsert(src, tgt, prepared, origin=origin, approved=approved))
 
-    def _upsert(self, src: str, tgt: str, items: list[_Prepared], *, origin: str, approved: bool) -> list[str]:
+    def _upsert(
+        self, src: str, tgt: str, items: list[_Prepared], *, origin: str, approved: bool
+    ) -> list[str]:
         index = self._pair_index(src, tgt)
         sem = self._semantic_index(src, tgt)
         now = _now()
@@ -335,8 +357,10 @@ class TranslationMemory:
             "approved = MAX(approved, excluded.approved)"
         )
         gen = [uuid.uuid4().hex for _ in items]
-        params = [(g, src, tgt, p.source, p.key, p.target, int(approved), origin, now, now)
-                  for g, p in zip(gen, items, strict=True)]
+        params = [
+            (g, src, tgt, p.source, p.key, p.target, int(approved), origin, now, now)
+            for g, p in zip(gen, items, strict=True)
+        ]
         with self._tx() as conn:
             conn.executemany(sql, params)
             # Resolve the stored id of every item (new uuid, or the existing row on conflict).
@@ -372,11 +396,14 @@ class TranslationMemory:
                 (src, tgt, key, k),
             ).fetchall()
         if exact:
-            matches = [TMMatch(r["id"], r["source"], r["target"], 1.0, bool(r["approved"]), r["origin"]) for r in exact]
+            matches = [
+                TMMatch(r["id"], r["source"], r["target"], 1.0, bool(r["approved"]), r["origin"])
+                for r in exact
+            ]
             return matches, (time.perf_counter() - t0) * 1000
 
         index = self._pair_index(src, tgt)
-        n_cand = max(4 * k, 32)
+        n_cand = max(4 * k, 16)
         cands = dict(index.search(base_form(key), n_cand))
         sem = self._semantic_index(src, tgt)
         sem_scores: dict[str, float] = {}
@@ -394,7 +421,9 @@ class TranslationMemory:
         for r in rows:
             score = min(similarity(key, r["source_norm"]), NON_EXACT_CAP)
             if sem is not None:
-                score = (1 - SEMANTIC_WEIGHT) * score + SEMANTIC_WEIGHT * max(0.0, sem_scores.get(r["id"], 0.0))
+                score = (1 - SEMANTIC_WEIGHT) * score + SEMANTIC_WEIGHT * max(
+                    0.0, sem_scores.get(r["id"], 0.0)
+                )
             if score >= min_score:
                 scored.append((score, bool(r["approved"]), int(r["uses"]), r))
         scored.sort(key=lambda t: (t[0], t[1], t[2]), reverse=True)
@@ -444,7 +473,9 @@ class TranslationMemory:
     def stats(self) -> dict[str, Any]:
         """``{"entries", "approved", "by_pair": {"english→yoruba": n}}`` (contract §4)."""
         with self._conn() as conn:
-            total, approved = conn.execute("SELECT COUNT(*), COALESCE(SUM(approved), 0) FROM entries").fetchone()
+            total, approved = conn.execute(
+                "SELECT COUNT(*), COALESCE(SUM(approved), 0) FROM entries"
+            ).fetchone()
             by_pair = {
                 f"{r[0]}→{r[1]}": int(r[2])
                 for r in conn.execute(
@@ -497,7 +528,8 @@ class TranslationMemory:
             return None
 
         aliases = {
-            name: {a.lower() for a in (*reg.get(name).aliases, reg.get(name).nllb_code)} for name in (src, tgt)
+            name: {a.lower() for a in (*reg.get(name).aliases, reg.get(name).nllb_code)}
+            for name in (src, tgt)
         }
         total = 0
         batch: list[tuple[str, str]] = []
@@ -553,10 +585,8 @@ class TranslationMemory:
             self._closed = True
             with self._conns_lock:
                 for conn in self._conns:
-                    try:
+                    with contextlib.suppress(sqlite3.Error):
                         conn.close()
-                    except sqlite3.Error:  # pragma: no cover
-                        pass
                 self._conns.clear()
 
     def __enter__(self) -> TranslationMemory:

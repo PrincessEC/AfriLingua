@@ -5,6 +5,7 @@ Enabled only when ``settings.model_embedder`` is set (e.g.
 ``transformers`` (no ``sentence-transformers`` dependency): mean pooling over the
 last hidden state, then L2 normalisation.
 """
+
 from __future__ import annotations
 
 import logging
@@ -21,7 +22,9 @@ __all__ = ["TransformersEmbedder"]
 class TransformersEmbedder:
     """Mean-pooled, normalised sentence embeddings from a Hugging Face encoder."""
 
-    def __init__(self, model_id: str, *, batch_size: int = 32, max_length: int = 128, device: str = "cpu") -> None:
+    def __init__(
+        self, model_id: str, *, batch_size: int = 32, max_length: int = 128, device: str = "cpu"
+    ) -> None:
         self.model_id = model_id
         self.batch_size = batch_size
         self.max_length = max_length
@@ -50,7 +53,9 @@ class TransformersEmbedder:
             out: list[np.ndarray] = []
             for i in range(0, len(texts), self.batch_size):
                 batch = texts[i : i + self.batch_size]
-                enc = self._tok(batch, padding=True, truncation=True, max_length=self.max_length, return_tensors="pt")
+                enc = self._tok(
+                    batch, padding=True, truncation=True, max_length=self.max_length, return_tensors="pt"
+                )
                 enc = {k: v.to(self.device) for k, v in enc.items()}
                 with torch.inference_mode():
                     hidden = self._model(**enc).last_hidden_state

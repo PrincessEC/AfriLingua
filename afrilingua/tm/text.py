@@ -8,6 +8,7 @@
   finds its tone-marked neighbours. Final scores are computed on :func:`tm_key`.
 * :func:`similarity` is the reranking score (rapidfuzz, with a difflib fallback).
 """
+
 from __future__ import annotations
 
 import unicodedata

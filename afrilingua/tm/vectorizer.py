@@ -10,6 +10,7 @@ UTF-32 code-point array and hashed in a handful of array operations, so building
 index for 100k sentences takes seconds, and a single query takes ~100 µs.
 Vectors are returned in CSR form ``(indptr, dims, vals)``.
 """
+
 from __future__ import annotations
 
 from collections.abc import Sequence

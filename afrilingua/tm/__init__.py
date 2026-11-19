@@ -3,6 +3,7 @@
 Use :func:`open_translation_memory` to get a :class:`TranslationMemory`, which
 implements :class:`afrilingua.engine.TranslationMemoryProtocol`.
 """
+
 from __future__ import annotations
 
 from afrilingua.tm.memory import TranslationMemory, open_translation_memory
