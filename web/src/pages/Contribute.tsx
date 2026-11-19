@@ -1,10 +1,11 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useSearchParams } from "react-router";
 import { BarChart3, Languages, Mic, ShieldCheck, UserRound, ListChecks } from "lucide-react";
 import { useContributor } from "../lib/contributor";
 import { useLanguages } from "../lib/languages";
 import { useLocalStorage } from "../lib/hooks";
 import { Button, Tabs } from "../components/ui";
+import { EmptyState } from "../components/states";
 import { ConsentModal } from "./contribute/ConsentModal";
 import { TranslateTab } from "./contribute/TranslateTab";
 import { RecordTab } from "./contribute/RecordTab";
@@ -30,9 +31,13 @@ export default function Contribute() {
   const [sessionCount, setSessionCount] = useState(0);
   const bump = () => setSessionCount((n) => n + 1);
 
-  // First visit to a contributing tab: ask for consent once.
+  // First visit to a contributing tab: ask for consent once per visit.
+  const asked = useRef(false);
   useEffect(() => {
-    if (!profile.consent && tab !== "stats") setConsentOpen(true);
+    if (!profile.consent && tab !== "stats" && !asked.current) {
+      asked.current = true;
+      setConsentOpen(true);
+    }
   }, [profile.consent, tab]);
 
   const contribLangs = languages.filter((l) => l.name !== "english");
@@ -95,13 +100,24 @@ export default function Contribute() {
       />
 
       <div role="tabpanel" id={`contrib-tabs-panel-${tab}`} aria-labelledby={`contrib-tabs-tab-${tab}`} className="mt-8">
-        {tab === "translate" && <TranslateTab key={effectiveLang} lang={effectiveLang} onSubmitted={bump} />}
-        {tab === "record" && <RecordTab key={effectiveLang} lang={effectiveLang} onSubmitted={bump} />}
-        {tab === "review" && <ReviewTab key={effectiveLang} lang={effectiveLang} onReviewed={bump} />}
-        {tab === "stats" && <StatsTab sessionCount={sessionCount} />}
+        {!profile.consent && (tab === "translate" || tab === "record") ? (
+          <EmptyState
+            icon={<ShieldCheck className="size-5" strokeWidth={1.6} />}
+            title="One quick step before you contribute"
+            description="Choose a licence and confirm your contributions are your own. It takes ten seconds and is stored only on this device."
+            action={<Button onClick={() => setConsentOpen(true)}>Review and agree</Button>}
+          />
+        ) : (
+          <>
+            {tab === "translate" && <TranslateTab key={effectiveLang} lang={effectiveLang} onSubmitted={bump} />}
+            {tab === "record" && <RecordTab key={effectiveLang} lang={effectiveLang} onSubmitted={bump} />}
+            {tab === "review" && <ReviewTab key={effectiveLang} lang={effectiveLang} onReviewed={bump} />}
+            {tab === "stats" && <StatsTab sessionCount={sessionCount} />}
+          </>
+        )}
       </div>
 
-      <ConsentModal open={consentOpen} onClose={() => setConsentOpen(false)} />
+      <ConsentModal open={consentOpen} onClose={() => setConsentOpen(false)} onDecline={() => setConsentOpen(false)} />
     </div>
   );
 }

@@ -4,7 +4,7 @@ import type { License } from "../../lib/api";
 import { useContributor } from "../../lib/contributor";
 import { Button, Field, Modal } from "../../components/ui";
 
-export function ConsentModal({ open, onClose }: { open: boolean; onClose: () => void }) {
+export function ConsentModal({ open, onClose, onDecline }: { open: boolean; onClose: () => void; onDecline?: () => void }) {
   const { profile, update } = useContributor();
   const [name, setName] = useState(profile.displayName);
   const [license, setLicense] = useState<License>(profile.license);
@@ -111,11 +111,9 @@ export function ConsentModal({ open, onClose }: { open: boolean; onClose: () => 
         </div>
 
         <div className="mt-7 flex justify-end gap-2">
-          {!firstTime && (
-            <Button variant="ghost" onClick={onClose}>
-              Cancel
-            </Button>
-          )}
+          <Button variant="ghost" onClick={firstTime && onDecline ? onDecline : onClose}>
+            {firstTime ? "Not now" : "Cancel"}
+          </Button>
           <Button type="submit" disabled={firstTime && !agree}>
             {firstTime ? "Start contributing" : "Save"}
           </Button>

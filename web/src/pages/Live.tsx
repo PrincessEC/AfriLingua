@@ -292,7 +292,7 @@ function HostConsole({ room, onEnd }: { room: HostRoom; onEnd: () => void }) {
 
   const join = useMemo(() => resolveJoinUrl(room), [room]);
 
-  useInterval(() => setNow(Date.now()), startedAt ? 1000 : null);
+  useInterval(() => setNow(Date.now()), phase === "live" || phase === "reconnecting" ? 1000 : null);
 
   useEffect(() => {
     listMicrophones()
