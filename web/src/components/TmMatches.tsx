@@ -8,11 +8,11 @@ export function ScoreBar({ score }: { score: number }) {
     <span className="inline-flex items-center gap-2" title={`Similarity ${pct}%`}>
       <span className="relative h-1.5 w-16 overflow-hidden rounded-full bg-sunken" aria-hidden>
         <span
-          className={cn("absolute inset-y-0 left-0 rounded-full", pct >= 95 ? "bg-ok" : pct >= 75 ? "bg-indigo" : "bg-ochre")}
+          className={cn("absolute inset-y-0 left-0 rounded-full", pct >= 95 ? "bg-ok" : pct >= 75 ? "bg-fg/60" : "bg-warn")}
           style={{ width: `${pct}%` }}
         />
       </span>
-      <span className="font-mono text-[12px] text-muted">
+      <span className="font-mono text-[13px] text-muted">
         <span className="sr-only">Similarity </span>
         {pct}%
       </span>
@@ -35,8 +35,8 @@ export function MatchList({
     <ul className="divide-y divide-line">
       {matches.map((m) => (
         <li key={String(m.id)} className="grid gap-2 py-4 sm:grid-cols-[1fr_1fr_auto] sm:items-start sm:gap-6">
-          <p className="text-[15px] text-muted">{m.source}</p>
-          <p lang={lang} className="text-[15px] font-medium text-fg">
+          <p className="text-[16px] text-muted">{m.source}</p>
+          <p lang={lang} className="text-[16px] font-medium text-fg">
             {m.target}
           </p>
           <div className="flex flex-wrap items-center gap-2 sm:justify-end">

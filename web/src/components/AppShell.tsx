@@ -1,28 +1,36 @@
-import { useEffect, useState } from "react";
-import { Link, NavLink, Outlet, useLocation } from "react-router";
+import { useEffect, useState, type ReactNode } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { Monitor, Moon, Sun } from "lucide-react";
 import { useHealth } from "../lib/hooks";
+import { useHash, usePathname } from "../lib/nav";
 import { useTheme } from "../lib/theme";
 import { cn } from "../lib/utils";
-import { Logo, WeaveBand } from "./Brand";
+import { GithubMark, Logo } from "./Brand";
+
+export const REPO_URL = "https://github.com/fegig/AfriLingua";
 
 export const NAV_LINKS = [
-  { to: "/live", label: "Live" },
   { to: "/translate", label: "Translate" },
-  { to: "/contribute", label: "Contribute" },
-  { to: "/memory", label: "Memory" },
   { to: "/documents", label: "Documents" },
+  { to: "/live", label: "Live" },
+  { to: "/memory", label: "Memory" },
+  { to: "/contribute", label: "Contribute" },
 ] as const;
+
+/** Active-link check for nav items: exact match for "/", otherwise path or sub-path. */
+function isActivePath(pathname: string, to: string): boolean {
+  const target = to.split("#")[0] || "/";
+  return target === "/" ? pathname === "/" : pathname === target || pathname.startsWith(target + "/");
+}
 
 export function EngineIndicator({ className, showLabel = true }: { className?: string; showLabel?: boolean }) {
   const { online, checking, version } = useHealth();
   const label = checking ? "Checking engine" : online ? "Engine online" : "Engine offline";
   return (
-    <Link
-      to="/status"
+    <a
+      href="/status"
       className={cn(
-        "inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-[13px] font-medium text-muted ring-1 ring-line transition-colors hover:text-fg hover:ring-line-strong",
+        "inline-flex h-8 items-center gap-2 rounded-lg px-2.5 text-[14px] font-medium text-muted ring-1 ring-inset ring-line transition-colors hover:text-fg hover:ring-line-strong",
         className,
       )}
       title={online && version ? `AfriLingua engine ${version}` : label}
@@ -38,7 +46,7 @@ export function EngineIndicator({ className, showLabel = true }: { className?: s
         />
       </span>
       {showLabel && <span>{checking ? "Checking" : online ? "Online" : "Offline"}</span>}
-    </Link>
+    </a>
   );
 }
 
@@ -51,13 +59,13 @@ export function ThemeToggle({ className }: { className?: string }) {
       type="button"
       onClick={cycle}
       className={cn(
-        "inline-grid size-9 place-items-center rounded-full text-muted transition-[background-color,color,transform] duration-200 ease-out-strong hover:bg-sunken hover:text-fg active:scale-95",
+        "inline-grid size-8 place-items-center rounded-lg text-muted transition-[background-color,color] duration-150 ease-out-strong hover:bg-sunken hover:text-fg",
         className,
       )}
       aria-label={`Theme: ${pref}. Switch to ${next}.`}
       title={`Theme: ${pref}`}
     >
-      <Icon className="size-[18px]" strokeWidth={1.6} />
+      <Icon className="size-4" strokeWidth={1.75} />
     </button>
   );
 }
@@ -82,6 +90,7 @@ function Hamburger({ open }: { open: boolean }) {
 }
 
 function MobileMenu({ open, onClose }: { open: boolean; onClose: () => void }) {
+  const pathname = usePathname();
   const reduce = useReducedMotion();
   useEffect(() => {
     if (!open) return;
@@ -115,19 +124,17 @@ function MobileMenu({ open, onClose }: { open: boolean; onClose: () => void }) {
                     animate={{ y: 0, opacity: 1 }}
                     transition={{ delay: reduce ? 0 : 0.04 + i * 0.045, duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
                   >
-                    <NavLink
-                      to={l.to}
-                      end={l.to === "/"}
+                    <a
+                      href={l.to}
                       onClick={onClose}
-                      className={({ isActive }) =>
-                        cn(
-                          "block py-2 font-display text-[2.1rem] font-semibold tracking-[-0.03em]",
-                          isActive ? "text-accent-text" : "text-fg",
-                        )
-                      }
+                      aria-current={isActivePath(pathname, l.to) ? "page" : undefined}
+                      className={cn(
+                        "block py-2 font-display text-[2.1rem] font-semibold tracking-[-0.03em]",
+                        isActivePath(pathname, l.to) ? "text-accent-text" : "text-fg",
+                      )}
                     >
                       {l.label}
-                    </NavLink>
+                    </a>
                   </motion.div>
                 </li>
               ))}
@@ -145,46 +152,60 @@ function MobileMenu({ open, onClose }: { open: boolean; onClose: () => void }) {
 
 export function TopNav() {
   const [open, setOpen] = useState(false);
-  const loc = useLocation();
-  useEffect(() => setOpen(false), [loc.pathname]);
+  const pathname = usePathname();
+  useEffect(() => setOpen(false), [pathname]);
   return (
     <>
       <a
         href="#main"
-        className="sr-only z-[80] rounded-full bg-fg px-4 py-2 text-bg focus:not-sr-only focus:fixed focus:left-4 focus:top-4"
+        className="sr-only z-[80] rounded-lg bg-fg px-4 py-2 text-bg focus:not-sr-only focus:fixed focus:left-4 focus:top-4"
       >
         Skip to content
       </a>
-      <header className="sticky top-0 z-50 px-3 pt-3 sm:px-5">
-        <div className="mx-auto flex h-14 max-w-[1240px] items-center justify-between gap-3 rounded-full border border-line bg-bg/75 pl-4 pr-2 shadow-[0_8px_30px_-18px_rgb(var(--shadow-tint)/0.35)] backdrop-blur-xl supports-[backdrop-filter]:bg-bg/65 sm:pl-5">
-          <Link to="/" aria-label="AfriLingua home" className="rounded-full">
-            <Logo />
-          </Link>
-          <nav aria-label="Primary" className="hidden lg:block">
-            <ul className="flex items-center gap-0.5">
-              {NAV_LINKS.map((l) => (
-                <li key={l.to}>
-                  <NavLink
-                    to={l.to}
-                    className={({ isActive }) =>
-                      cn(
-                        "rounded-full px-3.5 py-2 text-[14.5px] font-medium transition-colors duration-200",
-                        isActive ? "bg-sunken text-fg" : "text-muted hover:text-fg",
-                      )
-                    }
-                  >
-                    {l.label}
-                  </NavLink>
-                </li>
-              ))}
-            </ul>
-          </nav>
+      <header className="sticky top-0 z-50 border-b border-line bg-bg/80 backdrop-blur-xl supports-[backdrop-filter]:bg-bg/70">
+        <div className="mx-auto flex h-14 max-w-[1240px] items-center justify-between gap-4 px-5 md:px-8">
+          <div className="flex items-center gap-8">
+            <a href="/" aria-label="AfriLingua home" className="rounded-md">
+              <Logo />
+            </a>
+            <nav aria-label="Primary" className="hidden lg:block">
+              <ul className="flex items-center gap-1">
+                {NAV_LINKS.map((l) => (
+                  <li key={l.to}>
+                    <a
+                      href={l.to}
+                      aria-current={isActivePath(pathname, l.to) ? "page" : undefined}
+                      className={cn(
+                        "relative block rounded-md px-2.5 py-1.5 text-[15px] font-medium transition-colors duration-150",
+                        isActivePath(pathname, l.to) ? "text-fg" : "text-muted hover:text-fg",
+                      )}
+                    >
+                      {l.label}
+                      {isActivePath(pathname, l.to) && (
+                        <span aria-hidden className="absolute inset-x-2.5 -bottom-[13px] h-px bg-fg" />
+                      )}
+                    </a>
+                  </li>
+                ))}
+              </ul>
+            </nav>
+          </div>
           <div className="flex items-center gap-1.5">
             <EngineIndicator className="hidden sm:inline-flex" />
+            <a
+              href={REPO_URL}
+              target="_blank"
+              rel="noreferrer"
+              className="hidden size-8 place-items-center rounded-lg text-muted transition-colors hover:bg-sunken hover:text-fg lg:inline-grid"
+              aria-label="AfriLingua on GitHub"
+              title="GitHub"
+            >
+              <GithubMark className="size-4" />
+            </a>
             <ThemeToggle className="hidden lg:inline-grid" />
             <button
               type="button"
-              className="relative z-50 inline-grid size-10 place-items-center rounded-full text-fg hover:bg-sunken lg:hidden"
+              className="relative z-50 inline-grid size-9 place-items-center rounded-lg text-fg hover:bg-sunken lg:hidden"
               aria-expanded={open}
               aria-controls="mobile-menu"
               aria-label={open ? "Close menu" : "Open menu"}
@@ -203,40 +224,48 @@ export function TopNav() {
 export function Footer() {
   return (
     <footer className="relative mt-24 border-t border-line">
-      <WeaveBand className="opacity-90" />
-      <div className="mx-auto grid max-w-[1240px] gap-10 px-5 py-14 md:grid-cols-[1.4fr_1fr_1fr_1fr] md:px-8">
+      <div className="mx-auto grid max-w-[1240px] gap-10 px-5 py-14 md:grid-cols-[1.6fr_1fr_1fr_1fr] md:px-8">
         <div className="max-w-xs">
           <Logo />
-          <p className="mt-4 text-sm leading-relaxed text-muted">
-            Open, offline speech and translation for African languages. Built to run on the laptop you already have.
+          <p className="mt-4 text-[15px] leading-relaxed text-muted">
+            Fast, offline translation for African languages.
           </p>
+          <a
+            href={REPO_URL}
+            target="_blank"
+            rel="noreferrer"
+            className="mt-5 inline-flex items-center gap-2 text-[15px] font-medium text-fg underline-offset-4 hover:underline"
+          >
+            <GithubMark className="size-4" /> Star on GitHub
+          </a>
         </div>
         <FooterCol
-          title="Use it"
+          title="Product"
           links={[
-            { to: "/live", label: "Live interpretation" },
             { to: "/translate", label: "Translate text" },
             { to: "/documents", label: "Translate documents" },
+            { to: "/live", label: "Live interpretation" },
+          ]}
+        />
+        <FooterCol
+          title="Developers"
+          links={[
+            { to: "/#developers", label: "Python, API and MCP" },
+            { to: "/#speed", label: "Speed and accuracy" },
+            { to: "/status", label: "Engine status" },
           ]}
         />
         <FooterCol
           title="Community"
           links={[
             { to: "/contribute", label: "Contribute" },
+            { to: "/#train", label: "Train on your data" },
             { to: "/memory", label: "Translation memory" },
-            { to: "/contribute?tab=stats", label: "Leaderboard" },
-          ]}
-        />
-        <FooterCol
-          title="Developers"
-          links={[
-            { to: "/#developers", label: "MCP and API" },
-            { to: "/status", label: "Engine status" },
           ]}
         />
       </div>
-      <div className="mx-auto flex max-w-[1240px] flex-col gap-2 px-5 pb-10 text-[13px] text-subtle sm:flex-row sm:items-center sm:justify-between md:px-8">
-        <p>MIT licensed code. Community data under CC-BY-4.0 or CC0.</p>
+      <div className="mx-auto flex max-w-[1240px] flex-col gap-2 border-t border-line px-5 py-6 text-[14px] text-subtle sm:flex-row sm:items-center sm:justify-between md:px-8">
+        <p>MIT licensed.</p>
         <p>
           <span lang="yo">Ẹ ṣé o.</span> <span lang="ig">Daalụ.</span> <span lang="ha">Na gode.</span>
         </p>
@@ -248,13 +277,13 @@ export function Footer() {
 function FooterCol({ title, links }: { title: string; links: { to: string; label: string }[] }) {
   return (
     <div>
-      <p className="text-sm font-semibold text-fg">{title}</p>
+      <p className="text-[15px] font-semibold text-fg">{title}</p>
       <ul className="mt-3 space-y-2">
         {links.map((l) => (
           <li key={l.to}>
-            <Link to={l.to} className="text-sm text-muted transition-colors hover:text-fg">
+            <a href={l.to} className="text-[15px] text-muted transition-colors hover:text-fg">
               {l.label}
-            </Link>
+            </a>
           </li>
         ))}
       </ul>
@@ -264,27 +293,32 @@ function FooterCol({ title, links }: { title: string; links: { to: string; label
 
 /** Scrolls to top on path change, or to the hash target if present. */
 function ScrollManager() {
-  const { pathname, hash } = useLocation();
+  const pathname = usePathname();
+  const hash = useHash();
   useEffect(() => {
-    if (hash) {
-      const el = document.getElementById(hash.slice(1));
-      if (el) {
-        el.scrollIntoView({ behavior: "smooth", block: "start" });
-        return;
+    // Vike resets scroll / jumps to the hash after render; run after it so smooth scrolling wins.
+    const t = window.setTimeout(() => {
+      if (hash) {
+        const el = document.getElementById(hash);
+        if (el) {
+          el.scrollIntoView({ behavior: "smooth", block: "start" });
+          return;
+        }
       }
-    }
-    window.scrollTo({ top: 0 });
+      window.scrollTo({ top: 0 });
+    }, 0);
+    return () => window.clearTimeout(t);
   }, [pathname, hash]);
   return null;
 }
 
-export function AppShell() {
+export function AppShell({ children }: { children: ReactNode }) {
   return (
-    <div className="grain relative flex min-h-[100dvh] flex-col">
+    <div className="relative flex min-h-[100dvh] flex-col">
       <ScrollManager />
       <TopNav />
       <main id="main" className="relative z-[2] flex-1">
-        <Outlet />
+        {children}
       </main>
       <Footer />
     </div>

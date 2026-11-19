@@ -28,7 +28,7 @@ export function ConsentModal({ open, onClose, onDecline }: { open: boolean; onCl
           onClose();
         }}
       >
-        <ul className="space-y-3 text-[14.5px] leading-relaxed text-muted">
+        <ul className="space-y-3 text-[16px] leading-relaxed text-muted">
           <li className="flex gap-3">
             <ShieldCheck className="mt-0.5 size-5 shrink-0 text-ok" strokeWidth={1.6} aria-hidden />
             <span>
@@ -84,17 +84,17 @@ export function ConsentModal({ open, onClose, onDecline }: { open: boolean; onCl
                     checked={license === o.id}
                     onChange={() => setLicense(o.id)}
                   />
-                  <span className="block text-sm font-semibold text-fg">
+                  <span className="block text-[15px] font-semibold text-fg">
                     {o.title}
                     {o.id === "CC-BY-4.0" && <span className="ml-1.5 font-normal text-subtle">default</span>}
                   </span>
-                  <span className="mt-1 block text-[13px] text-muted">{o.body}</span>
+                  <span className="mt-1 block text-[14px] text-muted">{o.body}</span>
                 </label>
               ))}
             </div>
           </fieldset>
 
-          <label className="flex items-start gap-3 text-[14.5px] text-fg">
+          <label className="flex items-start gap-3 text-[16px] text-fg">
             <input type="checkbox" className="mt-1 size-4" checked={cloning} onChange={(e) => setCloning(e.target.checked)} />
             <span>
               Also allow my recordings to train synthetic voices.{" "}
@@ -103,7 +103,7 @@ export function ConsentModal({ open, onClose, onDecline }: { open: boolean; onCl
           </label>
 
           {firstTime && (
-            <label className="flex items-start gap-3 rounded-2xl bg-sunken p-4 text-[14.5px] text-fg">
+            <label className="flex items-start gap-3 rounded-2xl bg-sunken p-4 text-[16px] text-fg">
               <input type="checkbox" className="mt-1 size-4" checked={agree} onChange={(e) => setAgree(e.target.checked)} required />
               <span>I agree to share my contributions under the licence above, and confirm they are my own work.</span>
             </label>

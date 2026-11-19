@@ -122,11 +122,11 @@ export function TranslateTab({ lang, onSubmitted }: { lang: string; onSubmitted:
         <div className="core p-6 md:p-8">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="flex items-center gap-2">
-              <Pill tone="indigo">{langLabel(sourceLang, languages)}</Pill>
-              <span className="text-[13px] text-subtle">to</span>
+              <Pill tone="info">{langLabel(sourceLang, languages)}</Pill>
+              <span className="text-[14px] text-subtle">to</span>
               <Pill tone="accent">{langLabel(lang, languages)}</Pill>
             </div>
-            <div className="flex items-center gap-2 text-[13px] text-subtle">
+            <div className="flex items-center gap-2 text-[14px] text-subtle">
               {!ownMode && progress}
               <button
                 type="button"
@@ -153,7 +153,7 @@ export function TranslateTab({ lang, onSubmitted }: { lang: string; onSubmitted:
                   </Select>
                 </Field>
                 <Field label="Sentence" htmlFor="own-text">
-                  <textarea id="own-text" rows={2} className="field-input text-[17px]" value={ownSource} onChange={(e) => setOwnSource(e.target.value)} />
+                  <textarea id="own-text" rows={2} className="field-input text-[18px]" value={ownSource} onChange={(e) => setOwnSource(e.target.value)} />
                 </Field>
               </div>
             ) : prompts.isPending ? (
@@ -190,7 +190,7 @@ export function TranslateTab({ lang, onSubmitted }: { lang: string; onSubmitted:
                       submit.mutate();
                     }
                   }}
-                  className="field-input text-[18px] leading-relaxed"
+                  className="field-input text-[19px] leading-relaxed"
                   placeholder="Write it as you would say it, with tone marks if you use them"
                 />
               </Field>
@@ -203,7 +203,7 @@ export function TranslateTab({ lang, onSubmitted }: { lang: string; onSubmitted:
                     Skip
                   </Button>
                 )}
-                <span className="ml-auto hidden items-center gap-1 text-[12px] text-subtle sm:inline-flex">
+                <span className="ml-auto hidden items-center gap-1 text-[13px] text-subtle sm:inline-flex">
                   <span className="kbd">Ctrl</span>
                   <span className="kbd">
                     <CornerDownLeft className="size-3" strokeWidth={2} />
@@ -216,7 +216,7 @@ export function TranslateTab({ lang, onSubmitted }: { lang: string; onSubmitted:
         </div>
       </div>
 
-      <aside className="flex flex-col gap-5 rounded-[1.75rem] border border-line p-6">
+      <aside className="flex flex-col gap-5 rounded-2xl border border-line p-6">
         <Field label="Domain" htmlFor="contrib-domain" help="Helps the model learn the right words for each setting.">
           <Select id="contrib-domain" value={domain} onChange={(e) => setDomain(e.target.value as Domain)}>
             {DOMAINS.map((d) => (
@@ -229,7 +229,7 @@ export function TranslateTab({ lang, onSubmitted }: { lang: string; onSubmitted:
         <Field label="Your dialect" htmlFor="contrib-dialect" optional help="Remembered on this device.">
           <DialectInput id="contrib-dialect" lang={lang} value={dialect} onChange={setDialect} />
         </Field>
-        <div className="mt-auto rounded-2xl bg-sunken p-4 text-[13.5px] leading-relaxed text-muted">
+        <div className="mt-auto rounded-2xl bg-sunken p-4 text-[15px] leading-relaxed text-muted">
           <p className="font-semibold text-fg">Tips for good translations</p>
           <ul className="mt-2 list-disc space-y-1 pl-4">
             <li>Translate the meaning, not word for word.</li>

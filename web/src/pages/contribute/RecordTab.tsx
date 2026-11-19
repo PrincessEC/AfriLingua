@@ -204,7 +204,7 @@ export function RecordTab({ lang, onSubmitted }: { lang: string; onSubmitted: ()
     <div className="grid gap-6 lg:grid-cols-[1.3fr_1fr]">
       <div className="shell">
         <div className="core flex flex-col p-6 md:p-8">
-          <div className="flex items-center justify-between text-[13px] text-subtle">
+          <div className="flex items-center justify-between text-[14px] text-subtle">
             <span>Read this aloud in {langLabel(lang, languages)}</span>
             {list.length > 0 && (
               <span>
@@ -248,7 +248,7 @@ export function RecordTab({ lang, onSubmitted }: { lang: string; onSubmitted: ()
                   {state === "recording" ? <Square className="size-7" strokeWidth={2} /> : <Mic className="size-8" strokeWidth={1.6} />}
                 </button>
               </div>
-              <p className="font-mono text-sm tabular-nums text-muted" aria-live="polite">
+              <p className="font-mono text-[15px] tabular-nums text-muted" aria-live="polite">
                 {state === "recording"
                   ? `${formatDuration(seconds)} / 00:${MAX_SECONDS}`
                   : state === "recorded"
@@ -283,8 +283,8 @@ export function RecordTab({ lang, onSubmitted }: { lang: string; onSubmitted: ()
         </div>
       </div>
 
-      <aside className="flex flex-col gap-5 rounded-[1.75rem] border border-line p-6">
-        <p className="text-[14px] leading-relaxed text-muted">
+      <aside className="flex flex-col gap-5 rounded-2xl border border-line p-6">
+        <p className="text-[15px] leading-relaxed text-muted">
           These details help the models understand every way {langLabel(lang, languages)} is spoken. All are optional.
         </p>
         <Field label="Dialect" htmlFor="rec-dialect" optional>
@@ -317,7 +317,7 @@ export function RecordTab({ lang, onSubmitted }: { lang: string; onSubmitted: ()
             </Select>
           </Field>
         </div>
-        <p className="mt-auto rounded-2xl bg-sunken p-4 text-[13px] leading-relaxed text-muted">
+        <p className="mt-auto rounded-2xl bg-sunken p-4 text-[14px] leading-relaxed text-muted">
           Record somewhere quiet and speak naturally. Your voice is {profile.voiceCloningOptIn ? "allowed" : "not allowed"} to train
           synthetic voices; change that in your contributor settings.
         </p>

@@ -96,8 +96,8 @@ export function LiveCaptionDemo() {
   }, [reduce, inView, isFinal, words, shown, line.out.length]);
 
   return (
-    <div ref={ref} className="shell relative rounded-[2rem] p-2">
-      <div className="relative overflow-hidden rounded-[calc(2rem-0.5rem)] bg-ink text-ink-fg shadow-[inset_0_1px_0_rgb(255_255_255/0.08)]">
+    <div ref={ref} className="relative">
+      <div className="relative overflow-hidden rounded-2xl border border-ink-line bg-ink text-ink-fg shadow-[0_30px_80px_-40px_rgb(var(--shadow-tint)/0.6)]">
         <AdireField
           cols={7}
           rows={5}
@@ -108,14 +108,14 @@ export function LiveCaptionDemo() {
         <div className="relative flex items-center justify-between gap-3 border-b border-white/10 px-5 py-3.5 sm:px-6">
           <div className="flex items-center gap-2.5">
             <span className="relative flex size-2.5">
-              <span className="absolute inset-0 animate-ping rounded-full bg-[#ef8a64] opacity-60 motion-reduce:hidden" />
-              <span className="relative size-2.5 rounded-full bg-[#ef8a64]" />
+              <span className="absolute inset-0 animate-ping rounded-full bg-[#3fcf80] opacity-60 motion-reduce:hidden" />
+              <span className="relative size-2.5 rounded-full bg-[#3fcf80]" />
             </span>
-            <span className="text-sm font-semibold">Live</span>
-            <span className="text-sm text-ink-muted">Plenary hall</span>
+            <span className="text-[15px] font-semibold">Live</span>
+            <span className="text-[15px] text-ink-muted">Plenary hall</span>
           </div>
-          <div className="flex items-center gap-3 text-xs text-ink-muted">
-            <span className="hidden rounded-full border border-white/15 px-2 py-0.5 sm:inline">Sample session</span>
+          <div className="flex items-center gap-3 text-[13px] text-ink-muted">
+            <span className="hidden rounded-md border border-white/15 px-2 py-0.5 sm:inline">Sample session</span>
             <span className="inline-flex items-center gap-1.5">
               <Users className="size-3.5" strokeWidth={1.75} aria-hidden />
               <span>214 listening</span>
@@ -125,7 +125,7 @@ export function LiveCaptionDemo() {
 
         <div className="relative px-5 pb-6 pt-5 sm:px-6 sm:pb-7">
           <div className="flex items-center justify-between">
-            <span className="font-mono text-[11px] tracking-wide text-ink-muted">EN · speaker</span>
+            <span className="font-mono text-[12px] tracking-wide text-ink-muted">EN · speaker</span>
             <Waveform active={!reduce && inView && !isFinal} />
           </div>
           <p
@@ -143,7 +143,7 @@ export function LiveCaptionDemo() {
                 {w}{" "}
               </span>
             ))}
-            {!isFinal && <span className="ml-0.5 inline-block h-[0.9em] w-[2px] translate-y-[0.1em] animate-caret bg-[#e8b04a]" />}
+            {!isFinal && <span className="ml-0.5 inline-block h-[0.9em] w-[2px] translate-y-[0.1em] animate-caret bg-[#3fcf80]" />}
           </p>
 
           <div className="mt-5 h-px bg-white/10" />
@@ -151,7 +151,7 @@ export function LiveCaptionDemo() {
           <ul className="mt-2 divide-y divide-white/[0.07]">
             {line.out.map((o, i) => (
               <li key={o.code} className="grid min-h-[3.75rem] grid-cols-[2.25rem_1fr] items-center gap-3 py-2.5">
-                <span className="font-mono text-[11px] font-medium tracking-wide text-[#e8b04a]">{o.code}</span>
+                <span className="font-mono text-[12px] font-medium tracking-wide text-[#4fd88b]">{o.code}</span>
                 <AnimatePresence mode="wait" initial={false}>
                   {i < shown ? (
                     <motion.div
@@ -165,8 +165,8 @@ export function LiveCaptionDemo() {
                       <span lang={o.lang} className="text-[1.15rem] font-medium leading-snug sm:text-[1.3rem]">
                         {o.text}
                       </span>
-                      <span className="flex shrink-0 items-center gap-2 font-mono text-[11px] text-ink-muted">
-                        <span className="rounded-full bg-white/10 px-2 py-0.5">{o.origin}</span>
+                      <span className="flex shrink-0 items-center gap-2 font-mono text-[12px] text-ink-muted">
+                        <span className="rounded-md bg-white/10 px-2 py-0.5">{o.origin}</span>
                         {o.latency}
                       </span>
                     </motion.div>

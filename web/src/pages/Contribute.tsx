@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { useSearchParams } from "react-router";
+import { useSearchParams } from "../lib/nav";
 import { BarChart3, Languages, Mic, ShieldCheck, UserRound, ListChecks } from "lucide-react";
 import { useContributor } from "../lib/contributor";
 import { useLanguages } from "../lib/languages";
@@ -48,7 +48,7 @@ export default function Contribute() {
       <header className="mb-10 flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
         <div className="max-w-2xl">
           <h1 className="text-3xl font-semibold tracking-[-0.03em] md:text-[2.6rem] md:leading-[1.05]">Teach the models your language</h1>
-          <p className="mt-3 text-[17px] leading-relaxed text-muted">
+          <p className="mt-3 text-[18px] leading-relaxed text-muted">
             A few minutes of translating, recording or reviewing makes interpretation better for everyone who speaks it.
           </p>
         </div>
@@ -65,7 +65,7 @@ export default function Contribute() {
                   role="radio"
                   aria-checked={effectiveLang === l.name}
                   onClick={() => setLang(l.name)}
-                  className={`rounded-full px-4 py-2 text-[14.5px] font-medium ring-1 transition-colors ${
+                  className={`rounded-full px-4 py-2 text-[16px] font-medium ring-1 transition-colors ${
                     effectiveLang === l.name ? "bg-fg text-bg ring-fg" : "text-muted ring-line-strong hover:text-fg"
                   }`}
                 >

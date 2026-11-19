@@ -1,10 +1,16 @@
+import { useState } from "react";
 import { motion, useReducedMotion } from "motion/react";
-import { Cpu, Plug, ShieldCheck, Users, WifiOff } from "lucide-react";
+import { Check, Copy } from "lucide-react";
+import { GithubMark } from "../../components/Brand";
+import { REPO_URL } from "../../components/AppShell";
 import { CtaLink } from "../../components/ui";
-import { Rings } from "../../components/Brand";
-import { LiveCaptionDemo } from "./LiveCaptionDemo";
+import { fmtMs } from "../../lib/benchmarks";
+import { cn, copyText } from "../../lib/utils";
+import { HERO_RUN } from "./heroRun";
 
-const ease = [0.16, 1, 0.3, 1] as const;
+const INSTALL = 'pip install "afrilingua[all] @ git+https://github.com/fegig/AfriLingua.git@dev"';
+
+const ease = [0.23, 1, 0.32, 1] as const;
 
 export function Hero() {
   const reduce = useReducedMotion();
@@ -12,92 +18,190 @@ export function Hero() {
     reduce
       ? {}
       : {
-          initial: { opacity: 0, y: 22, filter: "blur(8px)" },
-          animate: { opacity: 1, y: 0, filter: "blur(0px)" },
-          transition: { duration: 0.9, delay, ease },
+          initial: { opacity: 0, y: 12 },
+          animate: { opacity: 1, y: 0 },
+          transition: { duration: 0.5, delay, ease },
         };
 
   return (
-    <section className="relative overflow-hidden">
-      <Rings className="pointer-events-none absolute -left-40 top-10 hidden size-[640px] text-fg opacity-[0.06] lg:block" count={9} />
-      <div className="mx-auto grid max-w-[1240px] items-center gap-12 px-5 pb-16 pt-12 md:px-8 md:pt-16 lg:min-h-[calc(100dvh-5rem)] lg:grid-cols-[1.08fr_1fr] lg:gap-14 lg:pb-20 lg:pt-10">
-        <div className="relative">
+    <section className="border-b border-line">
+      <div className="mx-auto grid max-w-[1240px] items-center gap-16 px-5 pb-24 pt-16 md:px-8 md:pt-24 lg:grid-cols-[1fr_1fr] lg:pb-32 lg:pt-28">
+        <div className="min-w-0">
           <motion.h1
-            {...enter(0.05)}
-            className="text-[2.6rem] font-semibold leading-[1.02] tracking-[-0.045em] text-fg sm:text-[3.4rem] lg:text-[3.9rem]"
+            {...enter(0)}
+            className="text-[2.9rem] font-semibold leading-[1.02] tracking-[-0.045em] text-fg sm:text-[3.8rem] lg:text-[4.4rem]"
           >
-            Real-time interpretation for{" "}
-            <span className="relative inline-block sm:whitespace-nowrap">
-              African languages.
-              <svg
-                aria-hidden
-                viewBox="0 0 300 14"
-                preserveAspectRatio="none"
-                className="absolute -bottom-2 left-0 h-3 w-full text-ochre"
-              >
-                <motion.path
-                  d="M3 9 C 60 3, 120 3, 170 7 S 260 12, 297 5"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="3.5"
-                  strokeLinecap="round"
-                  initial={reduce ? false : { pathLength: 0 }}
-                  animate={{ pathLength: 1 }}
-                  transition={{ duration: 1.1, delay: 0.7, ease: [0.65, 0, 0.35, 1] }}
-                />
-              </svg>
-            </span>
+            Fast, accurate translation for African languages.
           </motion.h1>
-          <motion.p {...enter(0.18)} className="mt-7 max-w-[34rem] text-lg leading-relaxed text-muted md:text-[1.2rem]">
-            <strong className="font-semibold text-fg">Offline. On any laptop.</strong> A speaker talks and every phone in the
-            room follows along in Yoruba, Igbo or Hausa.
+
+          <motion.p {...enter(0.08)} className="mt-7 max-w-[32rem] text-[19px] leading-relaxed text-muted md:text-[21px]">
+            Open source. Runs offline on any laptop, no GPU or API bill. Yoruba, Igbo, Hausa and English to start.
           </motion.p>
-          <motion.div {...enter(0.3)} className="mt-9 flex flex-col gap-3 sm:flex-row sm:items-center">
-            <CtaLink to="/live">Start interpreting</CtaLink>
-            <CtaLink to="/contribute" variant="secondary">
-              Contribute your language
-            </CtaLink>
+
+          <motion.div {...enter(0.16)} className="mt-10 flex flex-wrap items-center gap-3">
+            <CtaLink to="/#try">Try it now</CtaLink>
+            <a
+              href={REPO_URL}
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex h-13 items-center gap-2 rounded-lg px-6 text-[17px] font-medium text-fg ring-1 ring-inset ring-line-strong transition-colors hover:bg-sunken"
+            >
+              <GithubMark className="size-4" />
+              GitHub
+            </a>
+          </motion.div>
+
+          <motion.div {...enter(0.24)} className="mt-10 max-w-[32rem]">
+            <InstallLine />
           </motion.div>
         </div>
 
         <motion.div
-          initial={reduce ? false : { opacity: 0, y: 30, scale: 0.98 }}
-          animate={{ opacity: 1, y: 0, scale: 1 }}
-          transition={{ duration: 1, delay: 0.25, ease }}
-          className="relative lg:-mr-4"
+          initial={reduce ? false : { opacity: 0, y: 16 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6, delay: 0.12, ease }}
+          className="min-w-0"
         >
-          <LiveCaptionDemo />
+          <HeroConsole />
         </motion.div>
       </div>
     </section>
   );
 }
 
-const PROOF = [
-  { icon: WifiOff, title: "Works offline", body: "No internet after setup" },
-  { icon: Cpu, title: "CPU-fast", body: "int8 models, no GPU needed" },
-  { icon: Users, title: "Community-trained", body: "Speakers improve every release" },
-  { icon: Plug, title: "MCP + OpenAI-compatible", body: "Drop into agents and apps" },
-  { icon: ShieldCheck, title: "Data stays on your device", body: "Nothing is sent anywhere" },
-];
-
-export function ProofStrip() {
+function InstallLine() {
+  const [copied, setCopied] = useState(false);
   return (
-    <section aria-label="Highlights" className="border-y border-line bg-raised/50">
-      <ul className="no-scrollbar mx-auto flex max-w-[1240px] snap-x snap-mandatory gap-0 overflow-x-auto px-2 md:grid md:grid-cols-5 md:px-8">
-        {PROOF.map(({ icon: Icon, title, body }, i) => (
-          <li
-            key={title}
-            className={`flex min-w-[15rem] snap-start items-start gap-3 px-4 py-6 md:min-w-0 md:px-5 ${i > 0 ? "md:border-l md:border-line" : ""}`}
-          >
-            <Icon className="mt-0.5 size-5 shrink-0 text-accent-text" strokeWidth={1.5} aria-hidden />
-            <div>
-              <p className="text-[15px] font-semibold leading-tight text-fg">{title}</p>
-              <p className="mt-1 text-[13px] leading-snug text-subtle">{body}</p>
-            </div>
-          </li>
+    <div className="flex items-stretch overflow-hidden rounded-lg border border-line bg-raised">
+      <span className="flex items-center border-r border-line px-3 font-mono text-[13px] text-subtle">$</span>
+      <code className="no-scrollbar flex-1 overflow-x-auto whitespace-nowrap px-3 py-2.5 font-mono text-[14px] text-fg">{INSTALL}</code>
+      <button
+        type="button"
+        onClick={async () => {
+          if (await copyText(INSTALL)) {
+            setCopied(true);
+            window.setTimeout(() => setCopied(false), 1600);
+          }
+        }}
+        className="grid w-10 shrink-0 place-items-center border-l border-line text-muted transition-colors hover:bg-sunken hover:text-fg"
+        aria-label={copied ? "Copied" : "Copy install command"}
+      >
+        {copied ? <Check className="size-4 text-accent-text" strokeWidth={2} /> : <Copy className="size-4" strokeWidth={1.75} />}
+      </button>
+    </div>
+  );
+}
+
+type ConsoleTab = "python" | "rest" | "mcp";
+
+const CONSOLE_CODE: Record<ConsoleTab, { file: string; lines: { code: string; dim?: boolean }[] }> = {
+  python: {
+    file: "translate.py",
+    lines: [
+      { code: "import afrilingua" },
+      { code: "" },
+      { code: `text = "${HERO_RUN.source}"` },
+      { code: `afrilingua.translate(text, to="yoruba")` },
+      { code: `afrilingua.translate(text, to="igbo")` },
+      { code: `afrilingua.translate(text, to="hausa")` },
+    ],
+  },
+  rest: {
+    file: "terminal",
+    lines: [
+      { code: "afrilingua serve", dim: true },
+      { code: "" },
+      { code: "curl localhost:8000/api/v1/translate \\" },
+      { code: `  -H "Content-Type: application/json" \\` },
+      { code: `  -d '{"text": "${HERO_RUN.source}", "tgt_lang": "yoruba"}'` },
+    ],
+  },
+  mcp: {
+    file: "any MCP client → afrilingua mcp",
+    lines: [
+      { code: "tool: translate_text", dim: true },
+      { code: "" },
+      { code: "{" },
+      { code: `  "text": "${HERO_RUN.source}",` },
+      { code: `  "target_language": "yoruba"` },
+      { code: "}" },
+    ],
+  },
+};
+
+function HeroConsole() {
+  const [tab, setTab] = useState<ConsoleTab>("python");
+  const c = CONSOLE_CODE[tab];
+  return (
+    <figure className="overflow-hidden rounded-2xl border border-ink-line bg-ink text-ink-fg shadow-[0_40px_90px_-45px_rgb(var(--shadow-tint)/0.55)]">
+      <div className="flex items-center justify-between gap-3 border-b border-ink-line px-2 py-2">
+        <div role="tablist" aria-label="Interface" className="flex gap-0.5">
+          {(["python", "rest", "mcp"] as const).map((t) => (
+            <button
+              key={t}
+              role="tab"
+              type="button"
+              aria-selected={tab === t}
+              onClick={() => setTab(t)}
+              className={cn(
+                "rounded-md px-2.5 py-1 font-mono text-[13px] transition-colors",
+                tab === t ? "bg-white/10 text-ink-fg" : "text-ink-muted hover:text-ink-fg",
+              )}
+            >
+              {t === "python" ? "Python" : t === "rest" ? "REST" : "MCP"}
+            </button>
+          ))}
+        </div>
+        <span className="truncate pr-2 font-mono text-[12px] text-ink-muted">{c.file}</span>
+      </div>
+
+      <pre className="no-scrollbar min-h-[10.5rem] overflow-x-auto px-5 py-4 font-mono text-[14px] leading-[1.7]">
+        {c.lines.map((l, i) => (
+          <div key={i} className={l.dim ? "text-ink-muted" : undefined}>
+            {l.code ? <Highlight code={l.code} /> : " "}
+          </div>
         ))}
-      </ul>
-    </section>
+      </pre>
+
+      <div className="border-t border-ink-line bg-white/[0.02] px-5 py-4">
+        <ul className="space-y-2.5">
+          {HERO_RUN.outputs.map((o) => (
+            <li key={o.lang} className="grid grid-cols-[2.5rem_1fr_auto] items-baseline gap-3">
+              <span className="font-mono text-[12px] font-medium uppercase text-[#ff8f45]">{o.code}</span>
+              <span lang={o.code} className="min-w-0 text-[17px] leading-snug text-ink-fg">
+                {o.text}
+              </span>
+              <span className="font-mono text-[12px] tabular-nums text-ink-muted">{fmtMs(o.ms)}</span>
+            </li>
+          ))}
+        </ul>
+        <figcaption className="mt-4 flex flex-wrap items-center justify-between gap-2 border-t border-ink-line pt-3 font-mono text-[12px] text-ink-muted">
+          <span>{HERO_RUN.caption}</span>
+          <span>{HERO_RUN.model}</span>
+        </figcaption>
+      </div>
+    </figure>
+  );
+}
+
+/** Tiny highlighter for the hero console: strings green, keywords blue. */
+function Highlight({ code }: { code: string }) {
+  const parts = code.split(/("(?:[^"\\]|\\.)*"|'[^']*'|\bimport\b|\bcurl\b|\btool\b)/g);
+  return (
+    <>
+      {parts.map((p, i) =>
+        /^["']/.test(p) ? (
+          <span key={i} className="text-[#ffb27a]">
+            {p}
+          </span>
+        ) : /^(import|curl|tool)$/.test(p) ? (
+          <span key={i} className="text-[#9ecbff]">
+            {p}
+          </span>
+        ) : (
+          <span key={i}>{p}</span>
+        ),
+      )}
+    </>
   );
 }

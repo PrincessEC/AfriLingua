@@ -3,11 +3,11 @@ import {
   useEffect,
   useId,
   useRef,
+  type AnchorHTMLAttributes,
   type ButtonHTMLAttributes,
   type ReactNode,
   type SelectHTMLAttributes,
 } from "react";
-import { Link, type LinkProps } from "react-router";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { ArrowRight, LoaderCircle, X } from "lucide-react";
 import type { Origin } from "../lib/api";
@@ -15,24 +15,27 @@ import { cn, formatMs } from "../lib/utils";
 
 // ─── Buttons ───────────────────────────────────────────────────────────────
 
-type Variant = "primary" | "secondary" | "ghost" | "danger" | "ink";
+type Variant = "primary" | "secondary" | "ghost" | "danger" | "ink" | "accent";
 type Size = "sm" | "md" | "lg";
 
 const base =
-  "group relative inline-flex select-none items-center justify-center gap-2 whitespace-nowrap rounded-full font-medium transition-[background-color,color,box-shadow,transform,opacity] duration-200 ease-out-strong active:scale-[0.97] disabled:pointer-events-none disabled:opacity-50";
+  "group relative inline-flex select-none items-center justify-center gap-2 whitespace-nowrap rounded-lg font-medium transition-[background-color,color,box-shadow,transform,opacity] duration-150 ease-out-strong active:translate-y-px disabled:pointer-events-none disabled:opacity-50";
 
+// Primary actions use the orange accent; "ink" is the quieter monochrome option.
+// Green is reserved for live / success states.
 const variants: Record<Variant, string> = {
-  primary: "bg-accent text-accent-fg hover:bg-accent-hover shadow-[inset_0_1px_0_rgb(255_255_255/0.18),0_8px_20px_-10px_var(--accent)]",
-  secondary: "bg-raised text-fg ring-1 ring-line-strong hover:bg-sunken",
+  primary: "bg-accent text-accent-fg font-semibold hover:bg-accent-hover",
+  secondary: "bg-raised text-fg ring-1 ring-inset ring-line-strong hover:bg-sunken",
   ghost: "text-fg hover:bg-sunken",
-  danger: "bg-danger text-bg hover:opacity-90",
-  ink: "bg-fg text-bg hover:opacity-90",
+  danger: "bg-danger text-white hover:opacity-90",
+  ink: "bg-fg text-bg hover:bg-fg/85",
+  accent: "bg-accent text-accent-fg hover:bg-accent-hover",
 };
 
 const sizes: Record<Size, string> = {
-  sm: "h-9 px-3.5 text-sm",
-  md: "h-11 px-5 text-[15px]",
-  lg: "h-13 pl-6 pr-6 text-base",
+  sm: "h-9 px-3.5 text-[14px]",
+  md: "h-11 px-5 text-[16px]",
+  lg: "h-13 px-6 text-[17px]",
 };
 
 export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
@@ -60,36 +63,27 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button
   );
 });
 
-/** CTA link with the nested trailing-arrow island. */
+/** Call-to-action link: a large button with a trailing arrow that nudges on hover. */
 export function CtaLink({
   to,
   children,
   variant = "primary",
   className,
   ...rest
-}: { variant?: "primary" | "secondary" } & LinkProps) {
+}: { to: string; variant?: "primary" | "secondary" } & Omit<AnchorHTMLAttributes<HTMLAnchorElement>, "href">) {
   return (
-    <Link
-      to={to}
-      className={cn(
-        base,
-        "h-13 pl-6 pr-1.5 text-base",
-        variant === "primary" ? variants.primary : variants.secondary,
-        className,
-      )}
+    <a
+      href={to}
+      className={cn(base, sizes.lg, variant === "primary" ? variants.primary : variants.secondary, className)}
       {...rest}
     >
       <span>{children}</span>
-      <span
+      <ArrowRight
         aria-hidden
-        className={cn(
-          "ml-2 grid size-10 place-items-center rounded-full transition-transform duration-300 ease-out-strong group-hover:translate-x-0.5 group-hover:-translate-y-px group-hover:scale-105",
-          variant === "primary" ? "bg-black/15 dark:bg-black/10" : "bg-sunken",
-        )}
-      >
-        <ArrowRight className="size-4" strokeWidth={1.75} />
-      </span>
-    </Link>
+        className="size-4 transition-transform duration-200 ease-out-strong group-hover:translate-x-0.5"
+        strokeWidth={1.75}
+      />
+    </a>
   );
 }
 
@@ -105,7 +99,7 @@ export function IconButton({
       aria-label={label}
       title={label}
       className={cn(
-        "inline-grid size-10 place-items-center rounded-full text-muted transition-[background-color,color,transform] duration-200 ease-out-strong hover:bg-sunken hover:text-fg active:scale-95 disabled:opacity-40",
+        "inline-grid size-9 place-items-center rounded-lg text-muted transition-[background-color,color,transform] duration-150 ease-out-strong hover:bg-sunken hover:text-fg active:translate-y-px disabled:opacity-40",
         className,
       )}
       {...rest}
@@ -156,7 +150,7 @@ export function Field({
       </label>
       {children}
       {error ? (
-        <p className="text-[13px] font-medium text-danger" role="alert">
+        <p className="text-[14px] font-medium text-danger" role="alert">
           {error}
         </p>
       ) : help ? (
@@ -210,10 +204,10 @@ export function Switch({
   return (
     <div className="flex items-start justify-between gap-4">
       <div className="min-w-0">
-        <label htmlFor={id} className="text-sm font-medium text-fg">
+        <label htmlFor={id} className="text-[15px] font-medium text-fg">
           {label}
         </label>
-        {description && <p className="mt-0.5 text-[13px] text-subtle">{description}</p>}
+        {description && <p className="mt-0.5 text-[14px] text-subtle">{description}</p>}
       </div>
       <button
         id={id}
@@ -242,13 +236,13 @@ export function Switch({
 
 const ORIGIN_META: Record<string, { label: string; title: string; className: string }> = {
   tm_exact: { label: "Memory match", title: "Exact match from the translation memory", className: "bg-ok-soft text-ok" },
-  mt: { label: "Machine", title: "Neural machine translation (int8)", className: "bg-indigo-soft text-indigo-text" },
+  mt: { label: "Machine", title: "Neural machine translation (int8)", className: "bg-sunken text-fg ring-1 ring-inset ring-line" },
   mt_tm_assisted: {
     label: "Machine + memory",
     title: "Machine translation guided by close memory matches",
-    className: "bg-indigo-soft text-indigo-text",
+    className: "bg-accent-soft text-accent-text",
   },
-  cache: { label: "Cache", title: "Served instantly from the recent-results cache", className: "bg-ochre-soft text-fg" },
+  cache: { label: "Cache", title: "Served instantly from the recent-results cache", className: "bg-sunken text-muted" },
   passthrough: { label: "Unchanged", title: "Source and target language are the same", className: "bg-sunken text-muted" },
   community: { label: "Community", title: "Approved by community reviewers", className: "bg-accent-soft text-accent-text" },
 };
@@ -260,7 +254,7 @@ export function OriginBadge({ origin, className }: { origin: Origin | string | u
     <span
       title={meta.title}
       className={cn(
-        "inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[11px] font-semibold",
+        "inline-flex items-center gap-1.5 rounded-md px-2 py-0.5 text-[12px] font-semibold",
         meta.className,
         className,
       )}
@@ -275,22 +269,25 @@ export function OriginBadge({ origin, className }: { origin: Origin | string | u
 export function LatencyBadge({ ms, className }: { ms: number | undefined | null; className?: string }) {
   if (ms === undefined || ms === null) return null;
   return (
-    <span className={cn("inline-flex items-center rounded-full bg-sunken px-2.5 py-0.5 font-mono text-[11px] text-muted", className)}>
+    <span className={cn("inline-flex items-center rounded-md bg-sunken px-2 py-0.5 font-mono text-[12px] text-muted", className)}>
       {formatMs(ms)}
     </span>
   );
 }
 
-export function Pill({ children, className, tone = "neutral" }: { children: ReactNode; className?: string; tone?: "neutral" | "ok" | "accent" | "danger" | "indigo" }) {
+export type PillTone = "neutral" | "ok" | "accent" | "danger" | "warn" | "info";
+
+export function Pill({ children, className, tone = "neutral" }: { children: ReactNode; className?: string; tone?: PillTone }) {
   return (
     <span
       className={cn(
-        "inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium",
+        "inline-flex items-center gap-1.5 rounded-md px-2 py-0.5 text-[13px] font-medium",
         tone === "neutral" && "bg-sunken text-muted",
         tone === "ok" && "bg-ok-soft text-ok",
         tone === "accent" && "bg-accent-soft text-accent-text",
         tone === "danger" && "bg-danger-soft text-danger",
-        tone === "indigo" && "bg-indigo-soft text-indigo-text",
+        tone === "warn" && "bg-warn-soft text-warn",
+        tone === "info" && "bg-sunken text-fg ring-1 ring-inset ring-line-strong",
         className,
       )}
     >
@@ -336,7 +333,7 @@ export function Tabs<T extends string>({
     <div
       role="tablist"
       aria-label={label}
-      className={cn("no-scrollbar inline-flex max-w-full gap-1 overflow-x-auto rounded-full bg-sunken p-1", className)}
+      className={cn("no-scrollbar inline-flex max-w-full gap-1 overflow-x-auto rounded-[10px] bg-sunken p-1", className)}
     >
       {tabs.map((t, i) => {
         const active = t.id === value;
@@ -355,14 +352,14 @@ export function Tabs<T extends string>({
             onClick={() => onChange(t.id)}
             onKeyDown={(e) => onKey(e, i)}
             className={cn(
-              "relative inline-flex shrink-0 items-center gap-2 rounded-full px-4 py-2 text-sm font-medium transition-colors duration-200",
+              "relative inline-flex shrink-0 items-center gap-2 rounded-md px-3.5 py-1.5 text-[15px] font-medium transition-colors duration-200",
               active ? "text-fg" : "text-muted hover:text-fg",
             )}
           >
             {active && (
               <motion.span
                 layoutId={reduce ? undefined : layoutId}
-                className="absolute inset-0 rounded-full bg-raised shadow-[0_1px_2px_rgb(var(--shadow-tint)/0.08),inset_0_0_0_1px_var(--line)]"
+                className="absolute inset-0 rounded-md bg-raised shadow-[0_1px_2px_rgb(var(--shadow-tint)/0.08),inset_0_0_0_1px_var(--line)]"
                 transition={{ type: "spring", duration: 0.35, bounce: 0.12 }}
               />
             )}
@@ -456,7 +453,7 @@ export function Modal({
             exit={reduce ? { opacity: 0 } : { opacity: 0, y: 12, scale: 0.98, transition: { duration: 0.15 } }}
             transition={{ duration: 0.32, ease: [0.32, 0.72, 0, 1] }}
             className={cn(
-              "relative max-h-[92dvh] w-full max-w-lg overflow-y-auto rounded-t-[1.75rem] border border-line bg-raised p-6 shadow-2xl sm:rounded-[1.75rem] sm:p-8",
+              "relative max-h-[92dvh] w-full max-w-lg overflow-y-auto rounded-t-2xl border border-line bg-raised p-6 shadow-[0_24px_64px_-16px_rgb(var(--shadow-tint)/0.35)] sm:rounded-2xl sm:p-8",
               className,
             )}
           >
@@ -503,8 +500,8 @@ export function PageHeader({ title, description, actions }: { title: ReactNode; 
   return (
     <header className="mb-8 flex flex-col gap-5 md:mb-10 md:flex-row md:items-end md:justify-between">
       <div className="max-w-2xl">
-        <h1 className="text-3xl font-semibold tracking-[-0.03em] text-fg md:text-[2.6rem] md:leading-[1.05]">{title}</h1>
-        {description && <p className="mt-3 text-base leading-relaxed text-muted md:text-[17px]">{description}</p>}
+        <h1 className="text-3xl font-semibold tracking-[-0.035em] text-fg md:text-[2.5rem] md:leading-[1.05]">{title}</h1>
+        {description && <p className="mt-3 text-[17px] leading-relaxed text-muted md:text-[18px]">{description}</p>}
       </div>
       {actions && <div className="flex shrink-0 flex-wrap items-center gap-2">{actions}</div>}
     </header>

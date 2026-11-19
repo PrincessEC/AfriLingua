@@ -102,7 +102,7 @@ export default function Documents() {
                 pick(e.dataTransfer.files[0]);
               }}
               className={cn(
-                "flex min-h-[14rem] flex-col items-center justify-center rounded-[1.25rem] border-2 border-dashed px-6 py-10 text-center transition-colors",
+                "flex min-h-[14rem] flex-col items-center justify-center rounded-xl border-2 border-dashed px-6 py-10 text-center transition-colors",
                 drag ? "border-accent bg-accent-soft" : "border-line-strong",
               )}
             >
@@ -111,7 +111,7 @@ export default function Documents() {
                   <FileText className="size-8 shrink-0 text-accent-text" strokeWidth={1.4} />
                   <div className="min-w-0 flex-1">
                     <p className="truncate font-medium">{file.name}</p>
-                    <p className="text-[13px] text-subtle">{formatBytes(file.size)}</p>
+                    <p className="text-[14px] text-subtle">{formatBytes(file.size)}</p>
                   </div>
                   <IconButton label="Remove file" onClick={() => setFile(null)}>
                     <X className="size-4" strokeWidth={1.75} />
@@ -123,7 +123,7 @@ export default function Documents() {
                     <Upload className="size-6" strokeWidth={1.5} />
                   </span>
                   <p className="mt-4 font-display text-lg font-semibold tracking-tight">Drop a document here</p>
-                  <p className="mt-1 text-[14px] text-muted">.docx, .pdf or .txt</p>
+                  <p className="mt-1 text-[15px] text-muted">.docx, .pdf or .txt</p>
                   <Button variant="secondary" size="sm" className="mt-4" onClick={() => input.current?.click()}>
                     Choose file
                   </Button>
@@ -156,13 +156,13 @@ export default function Documents() {
               Recent jobs
             </h2>
             {jobs.length > 0 && (
-              <button type="button" className="text-[13px] text-subtle hover:text-fg" onClick={() => setJobs([])}>
+              <button type="button" className="text-[14px] text-subtle hover:text-fg" onClick={() => setJobs([])}>
                 Clear list
               </button>
             )}
           </div>
           {jobs.length === 0 ? (
-            <p className="mt-4 rounded-[1.25rem] border border-dashed border-line-strong p-6 text-[14.5px] text-muted">
+            <p className="mt-4 rounded-xl border border-dashed border-line-strong p-6 text-[16px] text-muted">
               Jobs you start appear here with live progress. Long PDFs can take a few minutes on a laptop CPU.
             </p>
           ) : (
@@ -207,12 +207,12 @@ function JobRow({ job, languagesLabel, onRemove }: { job: LocalJob; languagesLab
   };
 
   return (
-    <li className="rounded-[1.25rem] border border-line bg-raised p-4">
+    <li className="rounded-xl border border-line bg-raised p-4">
       <div className="flex items-start gap-3">
         <FileText className="mt-0.5 size-5 shrink-0 text-subtle" strokeWidth={1.5} />
         <div className="min-w-0 flex-1">
-          <p className="truncate text-[15px] font-medium">{d?.filename ?? job.filename}</p>
-          <p className="text-[13px] text-subtle">
+          <p className="truncate text-[16px] font-medium">{d?.filename ?? job.filename}</p>
+          <p className="text-[14px] text-subtle">
             {job.src === "auto" ? "Detected source" : languagesLabel(job.src)} to {languagesLabel(job.tgt)}
           </p>
         </div>
@@ -227,13 +227,13 @@ function JobRow({ job, languagesLabel, onRemove }: { job: LocalJob; languagesLab
         ) : q.isError ? (
           <Pill>{isOffline(q.error) ? "Engine offline" : "Unknown job"}</Pill>
         ) : (
-          <Pill tone="indigo">{status === "running" ? `${Math.round((d?.progress ?? 0) * 100)}%` : "Queued"}</Pill>
+          <Pill tone="info">{status === "running" ? `${Math.round((d?.progress ?? 0) * 100)}%` : "Queued"}</Pill>
         )}
       </div>
       {(status === "running" || status === "queued") && (
         <Meter value={d?.progress ?? 0} className="mt-3" label={`Progress for ${job.filename}`} />
       )}
-      {status === "error" && d?.error && <p className="mt-2 text-[13px] text-danger">{d.error}</p>}
+      {status === "error" && d?.error && <p className="mt-2 text-[14px] text-danger">{d.error}</p>}
       <div className="mt-3 flex justify-end gap-1">
         {status === "done" && (
           <Button size="sm" onClick={() => void download()} loading={downloading} icon={<Download className="size-4" strokeWidth={1.75} />}>

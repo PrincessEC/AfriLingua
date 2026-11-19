@@ -75,12 +75,12 @@ export function ToastProvider({ children }: { children: ReactNode }) {
                     "mt-0.5 size-5 shrink-0",
                     t.kind === "success" && "text-ok",
                     t.kind === "error" && "text-danger",
-                    t.kind === "info" && "text-indigo-text",
+                    t.kind === "info" && "text-fg",
                   )}
                 />
                 <div className="min-w-0 flex-1">
-                  <p className="text-sm font-semibold text-fg">{t.title}</p>
-                  {t.description && <p className="mt-0.5 text-[13px] leading-snug text-muted">{t.description}</p>}
+                  <p className="text-[15px] font-semibold text-fg">{t.title}</p>
+                  {t.description && <p className="mt-0.5 text-[14px] leading-snug text-muted">{t.description}</p>}
                 </div>
                 <button
                   type="button"

@@ -25,7 +25,7 @@ function AudioClip({ id }: { id: Contribution["id"] }) {
     };
   }, [q.data]);
   if (q.isPending) return <Skeleton className="h-12 w-full max-w-md rounded-full" />;
-  if (q.isError) return <p className="text-[13px] text-danger">Could not load this recording.</p>;
+  if (q.isError) return <p className="text-[14px] text-danger">Could not load this recording.</p>;
   return <audio controls autoPlay src={q.data} className="w-full max-w-md" />;
 }
 
@@ -135,10 +135,10 @@ export function ReviewTab({ lang, onReviewed }: { lang: string; onReviewed: () =
         >
           <div className="core p-6 md:p-8">
             <div className="flex flex-wrap items-center gap-2">
-              <Pill tone="indigo">{isAudio ? "Recording" : current.kind}</Pill>
+              <Pill tone="info">{isAudio ? "Recording" : current.kind}</Pill>
               {current.domain && <Pill>{current.domain}</Pill>}
               {current.dialect && <Pill tone="accent">{current.dialect}</Pill>}
-              <span className="ml-auto text-[12px] text-subtle">
+              <span className="ml-auto text-[13px] text-subtle">
                 {current.contributor ? `${current.contributor}, ` : ""}
                 {relativeTime(current.created_at)}
               </span>
@@ -146,7 +146,7 @@ export function ReviewTab({ lang, onReviewed }: { lang: string; onReviewed: () =
 
             {isAudio ? (
               <div className="mt-6">
-                <p className="text-[13px] text-subtle">Does this recording match the sentence?</p>
+                <p className="text-[14px] text-subtle">Does this recording match the sentence?</p>
                 <p className="mt-2 font-display text-[1.6rem] font-medium leading-snug tracking-[-0.02em]">{source}</p>
                 <div className="mt-5">
                   <AudioClip id={current.id} />
@@ -155,11 +155,11 @@ export function ReviewTab({ lang, onReviewed }: { lang: string; onReviewed: () =
             ) : (
               <div className="mt-6 space-y-5">
                 <div>
-                  <p className="text-[13px] text-subtle">{langLabel(current.src_lang ?? "english", languages)}</p>
+                  <p className="text-[14px] text-subtle">{langLabel(current.src_lang ?? "english", languages)}</p>
                   <p className="mt-1 text-[1.2rem] leading-snug text-muted">{source}</p>
                 </div>
                 <div>
-                  <p className="text-[13px] text-subtle">{langLabel(tLang, languages)}</p>
+                  <p className="text-[14px] text-subtle">{langLabel(tLang, languages)}</p>
                   <p
                     lang={languages.find((l) => l.name === tLang)?.iso639_1 ?? undefined}
                     className="mt-1 font-display text-[1.7rem] font-medium leading-snug tracking-[-0.02em]"
@@ -169,8 +169,8 @@ export function ReviewTab({ lang, onReviewed }: { lang: string; onReviewed: () =
                 </div>
                 {current.kind === "correction" && current.original_mt && (
                   <div className="rounded-2xl bg-sunken p-4">
-                    <p className="text-[12px] text-subtle">Machine translation it replaces</p>
-                    <p className="mt-1 text-[15px] text-muted line-through decoration-danger/50">{current.original_mt}</p>
+                    <p className="text-[13px] text-subtle">Machine translation it replaces</p>
+                    <p className="mt-1 text-[16px] text-muted line-through decoration-danger/50">{current.original_mt}</p>
                   </div>
                 )}
               </div>
@@ -215,7 +215,7 @@ export function ReviewTab({ lang, onReviewed }: { lang: string; onReviewed: () =
         </motion.div>
       </AnimatePresence>
 
-      <aside className="flex flex-col gap-4 rounded-[1.75rem] border border-line p-6 text-[14px] leading-relaxed text-muted">
+      <aside className="flex flex-col gap-4 rounded-2xl border border-line p-6 text-[15px] leading-relaxed text-muted">
         <p className="font-semibold text-fg">How reviewing works</p>
         <p>
           Approve if a fluent speaker would say it this way. Small spelling slips are fine to approve with a comment. Reject if the

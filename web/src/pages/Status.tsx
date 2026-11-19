@@ -55,7 +55,7 @@ export default function Status() {
       ) : (
         <div className="grid gap-6">
           {/* Runtime + hardware */}
-          <div className="grid gap-px overflow-hidden rounded-[1.75rem] bg-line ring-1 ring-line md:grid-cols-4">
+          <div className="grid gap-px overflow-hidden rounded-2xl bg-line ring-1 ring-line md:grid-cols-4">
             {[
               { icon: Server, label: "Runtime profile", value: rt?.profile, sub: rt ? PROFILE_COPY[rt.profile] ?? "" : "" },
               { icon: Cpu, label: "Device", value: rt ? rt.device.toUpperCase() : undefined, sub: hw?.gpu_name || (hw?.cpu_count ? `${hw.cpu_count} CPU cores` : "") },
@@ -68,25 +68,25 @@ export default function Status() {
               },
             ].map(({ icon: Icon, label, value, sub }) => (
               <div key={label} className="bg-raised p-6">
-                <p className="flex items-center gap-2 text-[13px] text-subtle">
+                <p className="flex items-center gap-2 text-[14px] text-subtle">
                   <Icon className="size-4" strokeWidth={1.6} aria-hidden /> {label}
                 </p>
                 <p className="mt-2 font-display text-2xl font-semibold tracking-tight">
                   {value ?? <Skeleton className="h-7 w-24" />}
                 </p>
-                {sub && <p className="mt-1 text-[13px] leading-snug text-muted">{sub}</p>}
+                {sub && <p className="mt-1 text-[14px] leading-snug text-muted">{sub}</p>}
               </div>
             ))}
           </div>
-          {hw?.reason && <p className="-mt-2 text-[13px] text-subtle">Hardware note: {hw.reason}</p>}
+          {hw?.reason && <p className="-mt-2 text-[14px] text-subtle">Hardware note: {hw.reason}</p>}
 
           <div className="grid gap-6 lg:grid-cols-[1.3fr_1fr]">
             {/* Models */}
-            <section className="rounded-[1.75rem] border border-line p-6" aria-labelledby="models-title">
+            <section className="rounded-2xl border border-line p-6" aria-labelledby="models-title">
               <h2 id="models-title" className="text-lg font-semibold tracking-tight">
                 Models
               </h2>
-              <p className="mt-1 text-[14px] text-muted">Models load on first use and stay in memory.</p>
+              <p className="mt-1 text-[15px] text-muted">Models load on first use and stay in memory.</p>
               {status.isPending ? (
                 <div className="mt-5 space-y-3">
                   {[0, 1, 2].map((i) => (
@@ -94,26 +94,26 @@ export default function Status() {
                   ))}
                 </div>
               ) : models.length === 0 ? (
-                <p className="mt-5 text-[14.5px] text-muted">No models registered yet.</p>
+                <p className="mt-5 text-[16px] text-muted">No models registered yet.</p>
               ) : (
                 <ul className="mt-5 divide-y divide-line">
                   {models.map((m) => (
                     <li key={m.id} className="flex flex-wrap items-center gap-3 py-3">
                       <div className="min-w-0 flex-1">
-                        <p className="truncate font-mono text-[13.5px] text-fg">{m.id}</p>
-                        <p className="text-[13px] text-subtle">
+                        <p className="truncate font-mono text-[15px] text-fg">{m.id}</p>
+                        <p className="text-[14px] text-subtle">
                           {m.kind}
                           {m.detail && ` / ${m.detail}`}
                         </p>
                       </div>
-                      {m.loadSeconds !== null && <span className="font-mono text-[12px] text-muted">loaded in {m.loadSeconds.toFixed(1)} s</span>}
+                      {m.loadSeconds !== null && <span className="font-mono text-[13px] text-muted">loaded in {m.loadSeconds.toFixed(1)} s</span>}
                       <Pill tone={m.loaded ? "ok" : "neutral"}>{m.loaded ? "Loaded" : "Not loaded"}</Pill>
                     </li>
                   ))}
                 </ul>
               )}
               {rt && (
-                <dl className="mt-5 grid gap-2 rounded-2xl bg-sunken p-4 font-mono text-[12px] text-muted sm:grid-cols-[auto_1fr] sm:gap-x-4">
+                <dl className="mt-5 grid gap-2 rounded-2xl bg-sunken p-4 font-mono text-[13px] text-muted sm:grid-cols-[auto_1fr] sm:gap-x-4">
                   {[
                     ["translation", rt.model_nllb],
                     ["speech (whisper)", rt.model_whisper],
@@ -131,20 +131,20 @@ export default function Status() {
             </section>
 
             <div className="flex flex-col gap-6">
-              <section className="rounded-[1.75rem] border border-line p-6" aria-labelledby="tm-status">
+              <section className="rounded-2xl border border-line p-6" aria-labelledby="tm-status">
                 <h2 id="tm-status" className="text-lg font-semibold tracking-tight">
                   Translation memory
                 </h2>
                 {s && !s.translation_memory ? (
-                  <p className="mt-2 text-[14.5px] text-muted">Disabled. The engine is running without a memory database.</p>
+                  <p className="mt-2 text-[16px] text-muted">Disabled. The engine is running without a memory database.</p>
                 ) : (
                   <dl className="mt-4 grid grid-cols-2 gap-4">
                     <div>
-                      <dt className="text-[13px] text-subtle">Entries</dt>
+                      <dt className="text-[14px] text-subtle">Entries</dt>
                       <dd className="font-display text-2xl font-semibold">{tm.data ? formatNumber(tm.data.entries) : "-"}</dd>
                     </div>
                     <div>
-                      <dt className="text-[13px] text-subtle">Approved</dt>
+                      <dt className="text-[14px] text-subtle">Approved</dt>
                       <dd className="font-display text-2xl font-semibold">{tm.data ? formatNumber(tm.data.approved) : "-"}</dd>
                     </div>
                   </dl>
@@ -155,13 +155,13 @@ export default function Status() {
           </div>
 
           {/* Languages */}
-          <section className="rounded-[1.75rem] border border-line p-6" aria-labelledby="lang-cap">
+          <section className="rounded-2xl border border-line p-6" aria-labelledby="lang-cap">
             <h2 id="lang-cap" className="text-lg font-semibold tracking-tight">
               Languages and capabilities
             </h2>
             <div className="mt-4 overflow-x-auto">
-              <table className="w-full min-w-[36rem] text-left text-[14px]">
-                <thead className="text-[12px] text-subtle">
+              <table className="w-full min-w-[36rem] text-left text-[15px]">
+                <thead className="text-[13px] text-subtle">
                   <tr className="border-b border-line">
                     <th className="py-2 pr-4 font-medium">Language</th>
                     <th className="py-2 pr-4 font-medium">Code</th>
@@ -177,7 +177,7 @@ export default function Status() {
                         <span className="font-medium">{l.display_name}</span>
                         {l.native_name && l.native_name !== l.display_name && <span className="ml-2 text-subtle">{l.native_name}</span>}
                       </td>
-                      <td className="py-3 pr-4 font-mono text-[12px] text-muted">{l.nllb_code}</td>
+                      <td className="py-3 pr-4 font-mono text-[13px] text-muted">{l.nllb_code}</td>
                       <td className="py-3 pr-4">
                         <Pill tone="ok">Yes</Pill>
                       </td>
@@ -219,7 +219,7 @@ function ApiKeyCard() {
   const [key, setKey] = useState(getApiKey);
   return (
     <form
-      className="rounded-[1.75rem] border border-line p-6"
+      className="rounded-2xl border border-line p-6"
       onSubmit={(e) => {
         e.preventDefault();
         setApiKey(key.trim());

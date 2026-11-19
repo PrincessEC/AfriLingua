@@ -11,7 +11,7 @@ export function QrCode({ value, size = 240, className, label }: { value: string;
       margin: 1,
       width: size * 2,
       errorCorrectionLevel: "M",
-      color: { dark: "#151935", light: "#fbfaf6" },
+      color: { dark: "#0b0b0d", light: "#ffffff" },
     })
       .then((url) => alive && setSrc(url))
       .catch(() => alive && setSrc(null));
@@ -21,7 +21,7 @@ export function QrCode({ value, size = 240, className, label }: { value: string;
   }, [value, size]);
   return (
     <div
-      className={cn("grid place-items-center rounded-2xl bg-[#fbfaf6] p-3 ring-1 ring-black/5", className)}
+      className={cn("grid place-items-center rounded-xl bg-white p-3 ring-1 ring-black/5", className)}
       style={{ width: size + 24, height: size + 24 }}
     >
       {src ? (

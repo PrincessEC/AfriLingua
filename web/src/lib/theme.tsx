@@ -27,10 +27,17 @@ function systemDark(): boolean {
 }
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
-  const [pref, setPrefState] = useState<ThemePref>(readPref);
-  const [sysDark, setSysDark] = useState(systemDark);
+  // Server render and first client render both use "system"/light so the markup matches;
+  // the stored preference is resolved in an effect (the inline script in <head> already
+  // applied the right class before paint, so there is no flash).
+  const [pref, setPrefState] = useState<ThemePref>("system");
+  const [sysDark, setSysDark] = useState(false);
+  const [ready, setReady] = useState(false);
 
   useEffect(() => {
+    setPrefState(readPref());
+    setSysDark(systemDark());
+    setReady(true);
     const mq = window.matchMedia("(prefers-color-scheme: dark)");
     const onChange = () => setSysDark(mq.matches);
     mq.addEventListener("change", onChange);
@@ -40,10 +47,11 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   const resolved: "light" | "dark" = pref === "system" ? (sysDark ? "dark" : "light") : pref;
 
   useEffect(() => {
+    if (!ready) return;
     const root = document.documentElement;
     root.classList.toggle("dark", resolved === "dark");
     root.style.colorScheme = resolved;
-  }, [resolved]);
+  }, [resolved, ready]);
 
   const setPref = useCallback((p: ThemePref) => {
     setPrefState(p);

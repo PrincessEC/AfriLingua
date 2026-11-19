@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useMutation } from "@tanstack/react-query";
-import { ArrowLeftRight, CornerDownLeft, Languages } from "lucide-react";
+import { ArrowLeftRight, CornerDownLeft } from "lucide-react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { api, isOffline, errorMessage, type TranslationResult } from "../../lib/api";
 import { useLanguages, langLabel } from "../../lib/languages";
@@ -29,16 +29,15 @@ export function TryIt() {
   };
 
   return (
-    <section id="try" className="mx-auto max-w-[1240px] scroll-mt-24 px-5 py-8 md:px-8 md:py-12" aria-labelledby="try-title">
+    <section id="try" className="mx-auto max-w-[1240px] scroll-mt-20 px-5 py-24 md:px-8 md:py-28" aria-labelledby="try-title">
       <Reveal>
-        <div className="shell rounded-[2rem] p-2">
-          <div className="core rounded-[calc(2rem-0.5rem)]">
+        <div>
+          <div className="core overflow-hidden rounded-2xl">
             <div className="flex flex-col gap-2 border-b border-line px-6 py-5 md:flex-row md:items-center md:justify-between md:px-8">
-              <h2 id="try-title" className="flex items-center gap-3 text-xl font-semibold tracking-tight md:text-2xl">
-                <Languages className="size-5 text-accent-text" strokeWidth={1.5} aria-hidden />
-                Try it on your engine
+              <h2 id="try-title" className="text-[1.6rem] font-semibold tracking-tight md:text-[2rem]">
+                Try it
               </h2>
-              <p className="text-[13px] text-subtle">Runs against your local server. Nothing leaves this machine.</p>
+              <p className="text-[15px] text-subtle">Runs on your local engine.</p>
             </div>
 
             <div className="grid lg:grid-cols-2">
@@ -81,7 +80,7 @@ export function TryIt() {
                         submit();
                       }
                     }}
-                    className="field-input resize-none text-[17px] leading-relaxed"
+                    className="field-input resize-none text-[18px] leading-relaxed"
                   />
                   <div className="flex flex-wrap gap-1.5">
                     {SAMPLES.map((s) => (
@@ -90,7 +89,7 @@ export function TryIt() {
                         type="button"
                         onClick={() => setText(s)}
                         className={cn(
-                          "rounded-full px-3 py-1 text-[13px] ring-1 transition-colors",
+                          "rounded-md px-2.5 py-1 text-[14px] ring-1 ring-inset transition-colors",
                           text === s ? "bg-sunken text-fg ring-line-strong" : "text-muted ring-line hover:text-fg",
                         )}
                       >
@@ -100,7 +99,7 @@ export function TryIt() {
                   </div>
                 </div>
                 <div className="flex items-center justify-between gap-3">
-                  <span className="hidden items-center gap-1.5 text-[13px] text-subtle sm:inline-flex">
+                  <span className="hidden items-center gap-1.5 text-[14px] text-subtle sm:inline-flex">
                     <span className="kbd">Ctrl</span>
                     <span className="kbd">
                       <CornerDownLeft className="size-3" strokeWidth={2} />
@@ -121,7 +120,7 @@ export function TryIt() {
                     isOffline(m.error) ? (
                       <EngineOffline compact description="The demo needs the local engine to translate." />
                     ) : (
-                      <p className="rounded-2xl bg-danger-soft p-4 text-[15px] text-fg" role="alert">
+                      <p className="rounded-lg bg-danger-soft p-4 text-[16px] text-fg" role="alert">
                         {errorMessage(m.error)}
                       </p>
                     )
@@ -143,13 +142,13 @@ export function TryIt() {
                           <OriginBadge origin={result.origin} />
                           <LatencyBadge ms={result.latency_ms} />
                           {result.detected && src === "auto" && (
-                            <span className="text-[13px] text-subtle">Detected {langLabel(result.src_lang, languages)}</span>
+                            <span className="text-[14px] text-subtle">Detected {langLabel(result.src_lang, languages)}</span>
                           )}
                         </div>
                       </motion.div>
                     </AnimatePresence>
                   ) : (
-                    <p className="text-[15px] leading-relaxed text-subtle">
+                    <p className="text-[16px] leading-relaxed text-subtle">
                       Your translation appears here, with where it came from: an approved memory match, the cache, or the
                       translation model.
                     </p>

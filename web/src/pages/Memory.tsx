@@ -70,7 +70,7 @@ export default function Memory() {
           { label: langLabel(src, languages) + " to " + langLabel(tgt, languages), value: stats.data?.by_pair?.[pairKey] ?? (stats.data ? 0 : undefined) },
         ].map((s) => (
           <div key={s.label}>
-            <dt className="text-[13px] text-subtle">{s.label}</dt>
+            <dt className="text-[14px] text-subtle">{s.label}</dt>
             <dd className="mt-0.5 font-display text-2xl font-semibold tabular-nums">
               {stats.isPending ? <Skeleton className="h-7 w-14" /> : stats.isError ? "-" : formatNumber(s.value)}
             </dd>
@@ -108,9 +108,9 @@ export default function Memory() {
                   value={q}
                   onChange={(e) => setQ(e.target.value)}
                   placeholder="Search a phrase, for example: good morning"
-                  className="field-input h-14 pl-12 pr-28 text-[17px]"
+                  className="field-input h-14 pl-12 pr-28 text-[18px]"
                 />
-                <span className="absolute right-4 top-1/2 -translate-y-1/2 font-mono text-[12px] text-subtle" aria-live="polite">
+                <span className="absolute right-4 top-1/2 -translate-y-1/2 font-mono text-[13px] text-subtle" aria-live="polite">
                   {search.data && debounced ? `${search.data.matches.length} in ${search.data.took_ms.toFixed(1)} ms` : ""}
                 </span>
               </div>
@@ -199,7 +199,7 @@ function AddEntry({ src, tgt }: { src: string; tgt: string }) {
   });
   return (
     <form
-      className="rounded-[1.75rem] border border-line p-6"
+      className="rounded-2xl border border-line p-6"
       onSubmit={(e) => {
         e.preventDefault();
         if (source.trim() && target.trim()) add.mutate();
@@ -215,7 +215,7 @@ function AddEntry({ src, tgt }: { src: string; tgt: string }) {
         <Field label={langLabel(tgt, languages)} htmlFor="tm-tgt">
           <textarea id="tm-tgt" rows={2} className="field-input" value={target} onChange={(e) => setTarget(e.target.value)} />
         </Field>
-        <label className="flex items-center gap-2.5 text-[14px]">
+        <label className="flex items-center gap-2.5 text-[15px]">
           <input type="checkbox" className="size-4" checked={approved} onChange={(e) => setApproved(e.target.checked)} />
           Mark as approved
         </label>
@@ -243,11 +243,11 @@ function ImportFile({ src, tgt }: { src: string; tgt: string }) {
     onError: (e) => toast.error("Import failed", isOffline(e) ? "The engine is offline." : errorMessage(e)),
   });
   return (
-    <div className="rounded-[1.75rem] border border-line p-6">
+    <div className="rounded-2xl border border-line p-6">
       <h2 className="flex items-center gap-2 text-lg font-semibold tracking-tight">
         <FileUp className="size-5 text-accent-text" strokeWidth={1.6} /> Import a file
       </h2>
-      <p className="mt-1 text-[14px] text-muted">TSV, CSV, JSONL or TMX. Imported into the language pair selected on the left.</p>
+      <p className="mt-1 text-[15px] text-muted">TSV, CSV, JSONL or TMX. Imported into the language pair selected on the left.</p>
       <div
         onDragOver={(e) => {
           e.preventDefault();
@@ -268,8 +268,8 @@ function ImportFile({ src, tgt }: { src: string; tgt: string }) {
         {file ? (
           <div className="flex w-full items-center gap-3 text-left">
             <div className="min-w-0 flex-1">
-              <p className="truncate text-[14px] font-medium">{file.name}</p>
-              <p className="text-[12px] text-subtle">{formatBytes(file.size)}</p>
+              <p className="truncate text-[15px] font-medium">{file.name}</p>
+              <p className="text-[13px] text-subtle">{formatBytes(file.size)}</p>
             </div>
             <IconButton label="Remove file" className="size-8" onClick={() => setFile(null)}>
               <X className="size-4" strokeWidth={1.75} />
@@ -277,7 +277,7 @@ function ImportFile({ src, tgt }: { src: string; tgt: string }) {
           </div>
         ) : (
           <>
-            <p className="text-[14px] text-muted">Drop a file here, or</p>
+            <p className="text-[15px] text-muted">Drop a file here, or</p>
             <Button variant="secondary" size="sm" className="mt-2" onClick={() => input.current?.click()}>
               Choose file
             </Button>

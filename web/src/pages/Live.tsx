@@ -196,7 +196,7 @@ function RoomSetup({ onCreated }: { onCreated: (r: HostRoom) => void }) {
                       <label
                         key={l.name}
                         className={cn(
-                          "inline-flex cursor-pointer items-center gap-2 rounded-full px-4 py-2 text-[14.5px] font-medium ring-1 transition-colors has-[:focus-visible]:outline has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-accent",
+                          "inline-flex cursor-pointer items-center gap-2 rounded-full px-4 py-2 text-[16px] font-medium ring-1 transition-colors has-[:focus-visible]:outline has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-accent",
                           on ? "bg-fg text-bg ring-fg" : "bg-raised text-muted ring-line-strong hover:text-fg",
                         )}
                       >
@@ -232,22 +232,22 @@ function RoomSetup({ onCreated }: { onCreated: (r: HostRoom) => void }) {
               <Button type="submit" size="lg" loading={create.isPending} disabled={!online || effectiveTargets.length === 0}>
                 Create room
               </Button>
-              {!online && <span className="text-[13px] text-subtle">Start the engine to create a room.</span>}
+              {!online && <span className="text-[14px] text-subtle">Start the engine to create a room.</span>}
             </div>
           </div>
         </form>
 
         <aside className="flex flex-col gap-4">
-          <div className="rounded-[1.75rem] bg-ink p-7 text-ink-fg">
+          <div className="rounded-2xl bg-ink p-7 text-ink-fg">
             <h2 className="text-lg font-semibold tracking-tight">Before you start</h2>
-            <ul className="mt-4 space-y-3 text-[14.5px] leading-relaxed text-ink-muted">
+            <ul className="mt-4 space-y-3 text-[16px] leading-relaxed text-ink-muted">
               <li>Put the laptop and listeners on the same Wi-Fi network or phone hotspot. No internet is needed.</li>
               <li>A lapel or podium microphone beats the laptop's built-in mic in a noisy room.</li>
               <li>Start the engine listening on your local network so phones can reach the join link.</li>
               <li>Ask listeners to bring earphones if they want audio.</li>
             </ul>
           </div>
-          <div className="rounded-[1.75rem] border border-line p-6 text-[14.5px] text-muted">
+          <div className="rounded-2xl border border-line p-6 text-[16px] text-muted">
             <p className="flex items-center gap-2 font-semibold text-fg">
               <Projector className="size-4" strokeWidth={1.6} /> Projector mode
             </p>
@@ -476,7 +476,7 @@ function HostConsole({ room, onEnd }: { room: HostRoom; onEnd: () => void }) {
             ) : (
               <Pill>Not live</Pill>
             )}
-            <span className="font-mono text-[12px] text-subtle">Room {room.id}</span>
+            <span className="font-mono text-[13px] text-subtle">Room {room.id}</span>
           </div>
           <h1 className="mt-3 text-3xl font-semibold tracking-[-0.03em] md:text-[2.4rem]">{room.title}</h1>
           <p className="mt-1.5 text-muted">
@@ -485,7 +485,7 @@ function HostConsole({ room, onEnd }: { room: HostRoom; onEnd: () => void }) {
         </div>
         <dl className="flex flex-wrap gap-6">
           <div>
-            <dt className="flex items-center gap-1.5 text-[13px] text-subtle">
+            <dt className="flex items-center gap-1.5 text-[14px] text-subtle">
               <Users className="size-3.5" strokeWidth={1.75} /> Listeners
             </dt>
             <dd className="mt-0.5 font-display text-3xl font-semibold tabular-nums" aria-live="polite">
@@ -493,7 +493,7 @@ function HostConsole({ room, onEnd }: { room: HostRoom; onEnd: () => void }) {
             </dd>
           </div>
           <div>
-            <dt className="flex items-center gap-1.5 text-[13px] text-subtle">
+            <dt className="flex items-center gap-1.5 text-[14px] text-subtle">
               <Timer className="size-3.5" strokeWidth={1.75} /> Elapsed
             </dt>
             <dd className="mt-0.5 font-display text-3xl font-semibold tabular-nums">{formatDuration(elapsed)}</dd>
@@ -507,15 +507,15 @@ function HostConsole({ room, onEnd }: { room: HostRoom; onEnd: () => void }) {
           <div className="shell">
             <div className="core flex flex-col items-center p-6 text-center">
               <QrCode value={join.url} size={208} label={`QR code to join room ${room.id}`} />
-              <p className="mt-4 text-[13px] text-subtle">Scan to listen</p>
-              <p className="mt-1 break-all font-mono text-[13px] text-fg">{join.url.replace(/^https?:\/\//, "")}</p>
+              <p className="mt-4 text-[14px] text-subtle">Scan to listen</p>
+              <p className="mt-1 break-all font-mono text-[14px] text-fg">{join.url.replace(/^https?:\/\//, "")}</p>
               {room.pin && (
-                <p className="mt-3 text-sm text-muted">
+                <p className="mt-3 text-[15px] text-muted">
                   PIN <span className="font-mono text-lg font-semibold tracking-[0.25em] text-fg">{room.pin}</span>
                 </p>
               )}
               {join.loopbackOnly && (
-                <p className="mt-4 flex items-start gap-2 rounded-2xl bg-ochre-soft p-3 text-left text-[13px] leading-snug text-fg">
+                <p className="mt-4 flex items-start gap-2 rounded-2xl bg-warn-soft p-3 text-left text-[14px] leading-snug text-fg">
                   <Info className="mt-0.5 size-4 shrink-0" strokeWidth={1.75} />
                   Phones cannot open a localhost address. Start the engine so it listens on your local network; the join link
                   then uses this laptop's network address.
@@ -539,7 +539,7 @@ function HostConsole({ room, onEnd }: { room: HostRoom; onEnd: () => void }) {
                   href={`/room/${encodeURIComponent(room.id)}?view=projector`}
                   target="_blank"
                   rel="noreferrer"
-                  className="inline-flex h-9 items-center gap-2 rounded-full px-3.5 text-sm font-medium text-fg ring-1 ring-line-strong transition-colors hover:bg-sunken"
+                  className="inline-flex h-9 items-center gap-2 rounded-full px-3.5 text-[15px] font-medium text-fg ring-1 ring-line-strong transition-colors hover:bg-sunken"
                 >
                   <Projector className="size-4" strokeWidth={1.75} /> Projector
                   <ExternalLink className="size-3.5 text-subtle" strokeWidth={1.75} />
@@ -569,7 +569,7 @@ function HostConsole({ room, onEnd }: { room: HostRoom; onEnd: () => void }) {
               </Field>
 
               <div>
-                <div className="flex items-center justify-between text-[13px] text-subtle">
+                <div className="flex items-center justify-between text-[14px] text-subtle">
                   <span className="flex items-center gap-1.5">
                     <Mic className="size-3.5" strokeWidth={1.75} /> Input level
                   </span>
@@ -583,7 +583,7 @@ function HostConsole({ room, onEnd }: { room: HostRoom; onEnd: () => void }) {
                   aria-valuemax={1}
                 >
                   <motion.div
-                    className="h-full origin-left rounded-full bg-[linear-gradient(90deg,var(--ok)_0%,var(--ok)_60%,var(--ochre)_80%,var(--accent)_100%)]"
+                    className="h-full origin-left rounded-full bg-[linear-gradient(90deg,var(--ok)_0%,var(--ok)_60%,var(--warn)_80%,var(--accent)_100%)]"
                     style={{ scaleX: levelScale }}
                   />
                 </div>
@@ -611,7 +611,7 @@ function HostConsole({ room, onEnd }: { room: HostRoom; onEnd: () => void }) {
                 </Button>
               )}
               {!MicCapture.supported && (
-                <p className="text-[13px] text-danger">This browser cannot capture audio. Use a recent Chrome, Edge, Firefox or Safari.</p>
+                <p className="text-[14px] text-danger">This browser cannot capture audio. Use a recent Chrome, Edge, Firefox or Safari.</p>
               )}
               <Button
                 variant="ghost"
@@ -687,13 +687,13 @@ function CaptionColumn({
     .filter((i) => i.text || i.pending);
 
   return (
-    <div className="flex h-[min(70vh,40rem)] flex-col overflow-hidden rounded-[1.5rem] border border-line bg-raised">
+    <div className="flex h-[min(70vh,40rem)] flex-col overflow-hidden rounded-xl border border-line bg-raised">
       <div className="flex items-center justify-between border-b border-line px-5 py-3">
-        <p className="flex items-center gap-2 text-sm font-semibold">
-          <span className="font-mono text-[11px] text-accent-text">{short}</span>
+        <p className="flex items-center gap-2 text-[15px] font-semibold">
+          <span className="font-mono text-[12px] text-accent-text">{short}</span>
           {label}
         </p>
-        {source && <span className="text-[12px] text-subtle">Speaker</span>}
+        {source && <span className="text-[13px] text-subtle">Speaker</span>}
       </div>
       <div
         ref={ref}
@@ -706,7 +706,7 @@ function CaptionColumn({
         lang={lang}
       >
         {items.length === 0 && !partial && (
-          <p className="pt-6 text-center text-[14px] text-subtle">
+          <p className="pt-6 text-center text-[15px] text-subtle">
             {live ? "Listening. Captions appear as you speak." : "Captions appear here once you go live."}
           </p>
         )}
@@ -715,17 +715,17 @@ function CaptionColumn({
             {i.pending ? (
               <div className="h-5 w-2/3 animate-pulse rounded bg-sunken" aria-hidden />
             ) : (
-              <p className="text-[16px] leading-relaxed text-fg">{i.text}</p>
+              <p className="text-[17px] leading-relaxed text-fg">{i.text}</p>
             )}
             {i.meta?.origin && (
-              <p className="mt-0.5 font-mono text-[11px] text-subtle">
+              <p className="mt-0.5 font-mono text-[12px] text-subtle">
                 {i.meta.origin}
                 {typeof i.meta.latency_ms === "number" && ` · ${Math.round(i.meta.latency_ms)} ms`}
               </p>
             )}
           </div>
         ))}
-        {partial && <p className="text-[16px] italic leading-relaxed text-subtle">{partial}</p>}
+        {partial && <p className="text-[17px] italic leading-relaxed text-subtle">{partial}</p>}
       </div>
     </div>
   );

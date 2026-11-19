@@ -7,19 +7,20 @@
   "scripts": {
     "dev": "vite",
     "build": "pnpm run typecheck && vite build",
-    "preview": "vite preview",
+    "preview": "vike preview",
     "typecheck": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p tsconfig.node.json"
   },
   "dependencies": {
+    "@fontsource-variable/geist": "^5.3.0",
     "@fontsource-variable/geist-mono": "^5.3.0",
-    "@fontsource-variable/inter-tight": "^5.3.0",
     "@tanstack/react-query": "^5.108.0",
     "lucide-react": "^1.75.0",
     "motion": "^14.14.0",
     "qrcode": "^1.5.4",
     "react": "^19.3.1",
     "react-dom": "^19.3.1",
-    "react-router": "^8.5.2"
+    "vike": "0.4.270",
+    "vike-react": "0.6.32"
   },
   "devDependencies": {
     "@tailwindcss/vite": "^4.3.5",

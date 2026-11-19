@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Link, useParams, useSearchParams } from "react-router";
+import { useSearchParams } from "../lib/nav";
 import { useQuery } from "@tanstack/react-query";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import {
@@ -45,8 +45,24 @@ function upsert(list: Caption[], seq: number, text: string): Caption[] {
   return next.slice(-MAX_LINES);
 }
 
+/**
+ * The room id comes from the real address bar, not from Vike's route params. The static
+ * host serves one prerendered template (/room/_) for every /room/<id>, so routeParams
+ * would be "_" on a cold load. This page is client-only (ssr: false), so reading
+ * window.location during render is safe.
+ */
+function roomIdFromLocation(): string {
+  if (typeof window === "undefined") return "";
+  const seg = window.location.pathname.split("/").filter(Boolean)[1] ?? "";
+  try {
+    return decodeURIComponent(seg);
+  } catch {
+    return seg;
+  }
+}
+
 export default function Room() {
-  const { id = "" } = useParams();
+  const id = roomIdFromLocation();
   const [params, setParams] = useSearchParams();
   const projector = params.get("view") === "projector";
   const { languages } = useLanguages();
@@ -91,7 +107,7 @@ function RoomLoading() {
     <div className="grid min-h-[100dvh] place-items-center bg-bg" aria-busy="true">
       <div className="flex flex-col items-center gap-4">
         <LogoMark className="size-10 animate-pulse-soft" />
-        <p className="text-sm text-muted">Joining the room</p>
+        <p className="text-[15px] text-muted">Joining the room</p>
       </div>
     </div>
   );
@@ -107,19 +123,19 @@ function RoomUnavailable({ notFound, onRetry }: { notFound: boolean; onRetry: ()
         <h1 className="mt-6 text-2xl font-semibold tracking-tight">
           {notFound ? "This room is not available" : "Cannot reach the interpreter"}
         </h1>
-        <p className="mt-3 text-[15px] leading-relaxed text-muted">
+        <p className="mt-3 text-[16px] leading-relaxed text-muted">
           {notFound
             ? "The session may have ended, or the link is incomplete. Ask the host for a fresh QR code."
             : "Make sure your phone is on the same Wi-Fi network as the host's laptop. This page keeps trying."}
         </p>
         <div className="mt-6 flex justify-center gap-2">
           <Button onClick={onRetry}>Try again</Button>
-          <Link to="/" className="inline-flex h-11 items-center rounded-full px-5 text-[15px] font-medium text-fg ring-1 ring-line-strong">
+          <a href="/" className="inline-flex h-11 items-center rounded-full px-5 text-[16px] font-medium text-fg ring-1 ring-line-strong">
             Home
-          </Link>
+          </a>
         </div>
         {!notFound && (
-          <p className="mt-8 text-[13px] text-subtle">
+          <p className="mt-8 text-[14px] text-subtle">
             Hosting? Start the engine with <span className="font-mono text-fg">afrilingua serve</span>.
           </p>
         )}
@@ -136,7 +152,7 @@ function PinGate({ onSubmit, wrong }: { onSubmit: (pin: string) => void; wrong: 
         <Lock className="size-6" strokeWidth={1.5} />
       </span>
       <h2 className="mt-5 text-xl font-semibold tracking-tight">This room has a PIN</h2>
-      <p className="mt-2 text-[15px] text-muted">The host can see it on their screen.</p>
+      <p className="mt-2 text-[16px] text-muted">The host can see it on their screen.</p>
       <form
         className="mt-6 flex flex-col gap-3"
         onSubmit={(e) => {
@@ -158,7 +174,7 @@ function PinGate({ onSubmit, wrong }: { onSubmit: (pin: string) => void; wrong: 
           className="field-input text-center font-mono text-2xl tracking-[0.4em]"
         />
         {wrong && (
-          <p className="text-[13px] font-medium text-danger" role="alert">
+          <p className="text-[14px] font-medium text-danger" role="alert">
             That PIN did not work. Check it and try again.
           </p>
         )}
@@ -173,9 +189,9 @@ function PinGate({ onSubmit, wrong }: { onSubmit: (pin: string) => void; wrong: 
 function ConnectionBadge({ state, live }: { state: SocketState; live: boolean }) {
   const text =
     state === "open" ? (live ? "Live" : "Waiting for speaker") : state === "reconnecting" ? "Reconnecting" : state === "connecting" ? "Connecting" : "Offline";
-  const tone = state === "open" ? (live ? "bg-ok" : "bg-ochre") : state === "closed" ? "bg-danger" : "bg-ochre";
+  const tone = state === "open" ? (live ? "bg-ok" : "bg-warn") : state === "closed" ? "bg-danger" : "bg-warn";
   return (
-    <span className="inline-flex items-center gap-1.5 text-[13px] font-medium text-muted" role="status">
+    <span className="inline-flex items-center gap-1.5 text-[14px] font-medium text-muted" role="status">
       <span className="relative flex size-2">
         {state === "open" && live && <span className={cn("absolute inset-0 animate-ping rounded-full opacity-60 motion-reduce:hidden", tone)} />}
         <span className={cn("relative size-2 rounded-full", tone)} />
@@ -307,14 +323,14 @@ function ListenerView({
     <div className="flex h-[100dvh] flex-col bg-bg text-fg">
       {/* Top bar */}
       <header className="flex items-center gap-3 border-b border-line px-4 pb-3 pt-[max(0.75rem,env(safe-area-inset-top))]">
-        <Link to="/" aria-label="AfriLingua home">
+        <a href="/" aria-label="AfriLingua home">
           <LogoMark className="size-8" />
-        </Link>
+        </a>
         <div className="min-w-0 flex-1">
-          <p className="truncate text-[15px] font-semibold leading-tight">{room.title || "Live session"}</p>
+          <p className="truncate text-[16px] font-semibold leading-tight">{room.title || "Live session"}</p>
           <div className="mt-0.5 flex items-center gap-3">
             <ConnectionBadge state={sock.state} live={live} />
-            <span className="inline-flex items-center gap-1 text-[13px] text-subtle">
+            <span className="inline-flex items-center gap-1 text-[14px] text-subtle">
               <Users className="size-3.5" strokeWidth={1.75} aria-hidden />
               <span className="sr-only">Listeners:</span>
               {listeners}
@@ -340,18 +356,18 @@ function ListenerView({
             onClick={() => setSavedLang(l)}
             aria-pressed={l === lang}
             className={cn(
-              "shrink-0 rounded-full px-4 py-2 text-[15px] font-medium transition-colors",
+              "shrink-0 rounded-full px-4 py-2 text-[16px] font-medium transition-colors",
               l === lang ? "bg-fg text-bg" : "bg-sunken text-muted hover:text-fg",
             )}
           >
             {langLabel(l, languages)}
-            {l === room.src_lang && <span className="ml-1.5 text-[12px] opacity-70">original</span>}
+            {l === room.src_lang && <span className="ml-1.5 text-[13px] opacity-70">original</span>}
           </button>
         ))}
       </nav>
 
       {sock.state === "reconnecting" && (
-        <div className="flex items-center justify-center gap-2 bg-ochre-soft px-4 py-2 text-[13px] font-medium text-fg" role="status">
+        <div className="flex items-center justify-center gap-2 bg-warn-soft px-4 py-2 text-[14px] font-medium text-warn" role="status">
           <WifiOff className="size-4" strokeWidth={1.75} />
           Connection lost. Reconnecting{sock.attempt > 1 ? ` (attempt ${sock.attempt})` : ""}.
         </div>
@@ -382,7 +398,7 @@ function ListenerView({
                   <p className="font-display text-2xl font-semibold tracking-tight text-fg">
                     {live ? "Captions will appear here." : "Waiting for the speaker."}
                   </p>
-                  <p className="mx-auto mt-2 max-w-xs text-[15px] text-muted">
+                  <p className="mx-auto mt-2 max-w-xs text-[16px] text-muted">
                     Keep this page open. {wakeSupported ? "Your screen stays awake while you listen." : ""}
                   </p>
                 </div>
@@ -408,7 +424,7 @@ function ListenerView({
                 </p>
               )}
               {speakingIndicator && (
-                <p className="mt-2 inline-flex items-center gap-2 text-[14px] text-subtle" aria-hidden>
+                <p className="mt-2 inline-flex items-center gap-2 text-[15px] text-subtle" aria-hidden>
                   <span className="flex gap-1">
                     {[0, 1, 2].map((d) => (
                       <span key={d} className="size-1.5 animate-pulse-soft rounded-full bg-subtle" style={{ animationDelay: `${d * 160}ms` }} />
@@ -428,7 +444,7 @@ function ListenerView({
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: 8 }}
                 onClick={() => setPinned(true)}
-                className="absolute bottom-28 left-1/2 inline-flex -translate-x-1/2 items-center gap-2 rounded-full bg-fg px-4 py-2 text-sm font-medium text-bg shadow-lg"
+                className="absolute bottom-28 left-1/2 inline-flex -translate-x-1/2 items-center gap-2 rounded-full bg-fg px-4 py-2 text-[15px] font-medium text-bg shadow-lg"
               >
                 <ArrowDown className="size-4" strokeWidth={1.75} /> Latest
               </motion.button>
@@ -446,7 +462,7 @@ function ListenerView({
             disabled={!voiceAvailable || !player.supported}
             aria-pressed={audioOn}
             className={cn(
-              "inline-flex h-12 flex-1 items-center justify-center gap-2 rounded-full text-[15px] font-semibold transition-[background-color,transform] active:scale-[0.98] disabled:opacity-50",
+              "inline-flex h-12 flex-1 items-center justify-center gap-2 rounded-full text-[16px] font-semibold transition-[background-color,transform] active:scale-[0.98] disabled:opacity-50",
               audioOn ? "bg-accent text-accent-fg" : "bg-sunken text-fg ring-1 ring-line-strong",
             )}
           >
@@ -462,7 +478,7 @@ function ListenerView({
             >
               <Minus className="size-4" strokeWidth={2} />
             </button>
-            <span className="w-8 text-center font-mono text-[12px] text-subtle" aria-hidden>
+            <span className="w-8 text-center font-mono text-[13px] text-subtle" aria-hidden>
               {size}
             </span>
             <button
@@ -476,7 +492,7 @@ function ListenerView({
           </div>
         </div>
         {audioOn && (
-          <p className="mx-auto mt-2 flex max-w-3xl items-center gap-1.5 text-[12px] text-subtle">
+          <p className="mx-auto mt-2 flex max-w-3xl items-center gap-1.5 text-[13px] text-subtle">
             <Headphones className="size-3.5" strokeWidth={1.75} /> Earphones keep the room quiet for others.
           </p>
         )}
@@ -517,7 +533,7 @@ function ListenerView({
                     <X className="size-4" strokeWidth={1.75} />
                   </button>
                 </div>
-                <label htmlFor="cap-size" className="mt-6 block text-sm font-medium">
+                <label htmlFor="cap-size" className="mt-6 block text-[15px] font-medium">
                   Caption size <span className="font-mono text-subtle">{size}px</span>
                 </label>
                 <input
@@ -534,23 +550,23 @@ function ListenerView({
                   Ẹ káàárọ̀
                 </p>
                 <div className="mt-6 flex items-center justify-between border-t border-line pt-5">
-                  <span className="text-sm font-medium">Theme</span>
+                  <span className="text-[15px] font-medium">Theme</span>
                   <ThemeToggle />
                 </div>
                 <div className="mt-4 flex items-center justify-between">
-                  <span className="text-sm font-medium">Keep screen awake</span>
-                  <span className="text-[13px] text-subtle">
+                  <span className="text-[15px] font-medium">Keep screen awake</span>
+                  <span className="text-[14px] text-subtle">
                     {!wakeSupported ? "Not supported on this device" : wakeHeld ? "On" : "When connected"}
                   </span>
                 </div>
                 <div className="mt-4 flex items-center justify-between">
-                  <span className="text-sm font-medium">Projector view</span>
-                  <Link
-                    to={`/room/${encodeURIComponent(room.id)}?view=projector${pin ? `&pin=${encodeURIComponent(pin)}` : ""}`}
-                    className="text-sm font-medium text-accent-text underline-offset-4 hover:underline"
+                  <span className="text-[15px] font-medium">Projector view</span>
+                  <a
+                    href={`/room/${encodeURIComponent(room.id)}?view=projector${pin ? `&pin=${encodeURIComponent(pin)}` : ""}`}
+                    className="text-[15px] font-medium text-accent-text underline-offset-4 hover:underline"
                   >
                     Open
-                  </Link>
+                  </a>
                 </div>
               </div>
             </motion.div>
@@ -623,7 +639,7 @@ function ProjectorView({
   };
 
   return (
-    <div className="flex h-[100dvh] flex-col bg-[#070918] text-[#f1ece1]">
+    <div className="dark flex h-[100dvh] flex-col bg-bg text-fg">
       <header className="flex items-center justify-between gap-4 px-8 py-5">
         <div className="flex items-center gap-4">
           <LogoMark className="size-9" />
@@ -640,10 +656,10 @@ function ProjectorView({
             id="proj-lang"
             value={lang}
             onChange={(e) => setLang(e.target.value)}
-            className="rounded-full border border-white/20 bg-transparent px-4 py-2 text-sm"
+            className="rounded-full border border-white/20 bg-transparent px-4 py-2 text-[15px]"
           >
             {room.targets.map((t) => (
-              <option key={t} value={t} className="bg-[#141833]">
+              <option key={t} value={t} className="bg-sunken">
                 {langLabel(t, languages)}
               </option>
             ))}
@@ -663,13 +679,13 @@ function ProjectorView({
       ) : (
         <main className="grid min-h-0 flex-1 grid-rows-2 gap-0 px-8 pb-8 md:px-14">
           <section aria-label={`${langLabel(room.src_lang, languages)} captions`} className="flex min-h-0 flex-col border-b border-white/10 pb-6">
-            <p className="mb-3 font-mono text-sm uppercase tracking-[0.2em] text-white/45">{langLabel(room.src_lang, languages)}</p>
+            <p className="mb-3 font-mono text-[15px] uppercase tracking-[0.2em] text-white/45">{langLabel(room.src_lang, languages)}</p>
             <div className="min-h-0 flex-1 text-[clamp(1.6rem,3.6vw,3.6rem)] text-white/80" aria-live="off">
               {lane(source, partial || undefined)}
             </div>
           </section>
           <section aria-label={`${langLabel(lang, languages)} captions`} className="flex min-h-0 flex-col pt-6">
-            <p className="mb-3 font-mono text-sm uppercase tracking-[0.2em] text-[#e8b04a]">{langLabel(lang, languages)}</p>
+            <p className="mb-3 font-mono text-[15px] uppercase tracking-[0.2em] text-accent-text">{langLabel(lang, languages)}</p>
             <div className="min-h-0 flex-1 text-[clamp(2rem,4.6vw,4.8rem)]" aria-live="polite" lang={languages.find((l) => l.name === lang)?.iso639_1 ?? undefined}>
               {target.length ? lane(target) : <p className="text-white/35">{live ? "Waiting for the first sentence." : "Waiting for the speaker."}</p>}
             </div>

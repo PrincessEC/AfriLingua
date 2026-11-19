@@ -19,14 +19,14 @@ export function CommandChip({ command, className }: { command: string; className
         }
       }}
       className={cn(
-        "group inline-flex items-center gap-2 rounded-full border border-line-strong bg-sunken py-1 pl-3.5 pr-1.5 font-mono text-[13px] text-fg transition-colors hover:border-accent",
+        "group inline-flex max-w-full items-center gap-2 rounded-lg border border-line-strong bg-sunken py-1 pl-3 pr-1 font-mono text-[14px] text-fg transition-colors hover:border-fg/40",
         className,
       )}
       aria-label={`Copy command: ${command}`}
     >
       <span className="text-subtle">$</span>
       {command}
-      <span className="grid size-7 place-items-center rounded-full bg-raised text-muted group-hover:text-fg">
+      <span className="grid size-7 shrink-0 place-items-center rounded-md bg-raised text-muted group-hover:text-fg">
         {copied ? <Check className="size-3.5 text-ok" strokeWidth={2} /> : <Copy className="size-3.5" strokeWidth={1.75} />}
       </span>
     </button>
@@ -54,7 +54,7 @@ export function EngineOffline({
     <div
       role="status"
       className={cn(
-        "relative overflow-hidden rounded-[1.5rem] border border-dashed border-line-strong bg-raised/60",
+        "relative overflow-hidden rounded-xl border border-dashed border-line-strong bg-raised/60",
         compact ? "p-5" : "p-8 md:p-10",
         className,
       )}
@@ -68,14 +68,14 @@ export function EngineOffline({
         />
       )}
       <div className="relative flex flex-col gap-4 sm:flex-row sm:items-start">
-        <span className="grid size-11 shrink-0 place-items-center rounded-full bg-accent-soft text-accent-text">
+        <span className="grid size-10 shrink-0 place-items-center rounded-lg bg-sunken text-fg ring-1 ring-inset ring-line">
           <PlugZap className="size-5" strokeWidth={1.75} />
         </span>
         <div className="min-w-0 flex-1">
           <p className="font-display text-lg font-semibold tracking-tight text-fg">{title}</p>
-          <p className="mt-1 max-w-[60ch] text-[15px] leading-relaxed text-muted">{description}</p>
+          <p className="mt-1 max-w-[60ch] text-[16px] leading-relaxed text-muted">{description}</p>
           <div className="mt-4 flex flex-wrap items-center gap-3">
-            <span className="text-sm text-muted">Start the engine:</span>
+            <span className="text-[15px] text-muted">Start the engine:</span>
             <CommandChip command="afrilingua serve" />
             {onRetry && (
               <Button variant="ghost" size="sm" onClick={onRetry} icon={<RefreshCw className="size-4" strokeWidth={1.75} />}>
@@ -93,7 +93,7 @@ export function EngineOffline({
 export function QueryError({ error, onRetry, compact }: { error: unknown; onRetry?: () => void; compact?: boolean }) {
   if (isOffline(error)) return <EngineOffline onRetry={onRetry} compact={compact} />;
   return (
-    <div role="alert" className="rounded-[1.25rem] border border-danger/30 bg-danger-soft p-5 text-sm text-fg">
+    <div role="alert" className="rounded-xl border border-danger/30 bg-danger-soft p-5 text-[15px] text-fg">
       <p className="font-semibold text-danger">That request did not go through.</p>
       <p className="mt-1 text-muted">{errorMessage(error)}</p>
       {onRetry && (
@@ -119,10 +119,10 @@ export function EmptyState({
   className?: string;
 }) {
   return (
-    <div className={cn("flex flex-col items-center rounded-[1.5rem] border border-dashed border-line-strong px-6 py-12 text-center", className)}>
+    <div className={cn("flex flex-col items-center rounded-xl border border-dashed border-line-strong px-6 py-12 text-center", className)}>
       {icon && <span className="mb-4 grid size-12 place-items-center rounded-full bg-sunken text-muted">{icon}</span>}
       <p className="font-display text-lg font-semibold tracking-tight text-fg">{title}</p>
-      {description && <p className="mt-1.5 max-w-[46ch] text-[15px] leading-relaxed text-muted">{description}</p>}
+      {description && <p className="mt-1.5 max-w-[46ch] text-[16px] leading-relaxed text-muted">{description}</p>}
       {action && <div className="mt-5">{action}</div>}
     </div>
   );

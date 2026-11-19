@@ -123,8 +123,8 @@ export default function Translate() {
         description="Type or paste text. Each line is translated on its own, so lists and scripts keep their shape."
       />
 
-      <div className="shell rounded-[2rem] p-2">
-        <div className="core grid overflow-hidden rounded-[calc(2rem-0.5rem)] lg:grid-cols-2">
+      <div className="shell rounded-2xl p-2">
+        <div className="core grid overflow-hidden rounded-xl lg:grid-cols-2">
           {/* Source */}
           <div className="flex flex-col border-line lg:border-r">
             <div className="flex items-end gap-2 border-b border-line p-4 md:px-6">
@@ -164,7 +164,7 @@ export default function Translate() {
                   }
                 }}
                 placeholder="Type something to translate"
-                className="block min-h-[16rem] w-full resize-y bg-transparent px-5 py-5 text-[18px] leading-relaxed text-fg placeholder:text-subtle focus:outline-none md:px-7 lg:min-h-[22rem]"
+                className="block min-h-[16rem] w-full resize-y bg-transparent px-5 py-5 text-[19px] leading-relaxed text-fg placeholder:text-subtle focus:outline-none md:px-7 lg:min-h-[22rem]"
               />
               {text && (
                 <IconButton
@@ -182,14 +182,14 @@ export default function Translate() {
             </div>
             <div className="flex items-center justify-between gap-3 border-t border-line px-5 py-3 md:px-6">
               <span
-                className={cn("font-mono text-[12px]", text.length > MAX_CHARS ? "text-danger" : "text-subtle")}
+                className={cn("font-mono text-[13px]", text.length > MAX_CHARS ? "text-danger" : "text-subtle")}
                 aria-live="polite"
               >
                 {text.length.toLocaleString()} / {MAX_CHARS.toLocaleString()}
                 {segments.length > 1 && <span className="ml-2">Â· {segments.length} lines</span>}
               </span>
               <div className="flex items-center gap-3">
-                <span className="hidden items-center gap-1 text-[12px] text-subtle sm:inline-flex">
+                <span className="hidden items-center gap-1 text-[13px] text-subtle sm:inline-flex">
                   <span className="kbd">Ctrl</span>
                   <span className="kbd">
                     <CornerDownLeft className="size-3" strokeWidth={2} />
@@ -222,7 +222,7 @@ export default function Translate() {
                 isOffline(translate.error) ? (
                   <EngineOffline compact />
                 ) : (
-                  <p role="alert" className="rounded-2xl bg-danger-soft p-4 text-[15px]">
+                  <p role="alert" className="rounded-2xl bg-danger-soft p-4 text-[16px]">
                     {errorMessage(translate.error)}
                   </p>
                 )
@@ -255,7 +255,7 @@ export default function Translate() {
                   </motion.div>
                 </AnimatePresence>
               ) : (
-                <p className="text-[15px] text-subtle">The translation appears here.</p>
+                <p className="text-[16px] text-subtle">The translation appears here.</p>
               )}
             </div>
             <div className="flex min-h-[3.75rem] flex-wrap items-center justify-between gap-2 border-t border-line px-5 py-3 md:px-6">
@@ -263,7 +263,7 @@ export default function Translate() {
                 {first && !override && results?.length === 1 && <OriginBadge origin={first.origin} />}
                 {override && <Pill tone="accent">Edited by you</Pill>}
                 {results && <LatencyBadge ms={totalLatency} />}
-                {detected && <span className="text-[13px] text-subtle">Detected {langLabel(detected, languages)}</span>}
+                {detected && <span className="text-[14px] text-subtle">Detected {langLabel(detected, languages)}</span>}
               </div>
               {output && (
                 <div className="flex items-center gap-1">
@@ -338,14 +338,14 @@ export default function Translate() {
             <h2 id="tm-title" className="text-xl font-semibold tracking-tight">
               Translation memory matches
             </h2>
-            <span className="text-[13px] text-subtle">{allMatches.length ? `${allMatches.length} shown` : ""}</span>
+            <span className="text-[14px] text-subtle">{allMatches.length ? `${allMatches.length} shown` : ""}</span>
           </div>
           {allMatches.length ? (
             <div className="mt-3">
               <MatchList matches={allMatches} lang={tgtSpec?.iso639_1 ?? undefined} onUse={(m) => setOverride(m.target)} />
             </div>
           ) : (
-            <p className="mt-3 text-[15px] text-muted">
+            <p className="mt-3 text-[16px] text-muted">
               No close matches in memory for this text yet. Approved suggestions are added here for everyone.
             </p>
           )}
@@ -411,7 +411,7 @@ function SuggestForm({
 
   return (
     <form
-      className="mt-6 rounded-[1.75rem] border border-line bg-raised p-6 md:p-8"
+      className="mt-6 rounded-2xl border border-line bg-raised p-6 md:p-8"
       onSubmit={(e) => {
         e.preventDefault();
         setTouched(true);
@@ -420,7 +420,7 @@ function SuggestForm({
       }}
     >
       <h2 className="text-lg font-semibold tracking-tight">Suggest a better translation</h2>
-      <p className="mt-1 text-[14.5px] text-muted">Reviewers who speak {langLabel(tgtLang)} will check it before it is used.</p>
+      <p className="mt-1 text-[16px] text-muted">Reviewers who speak {langLabel(tgtLang)} will check it before it is used.</p>
       <div className="mt-6 grid gap-5 md:grid-cols-[2fr_1fr]">
         <Field label="Your translation" htmlFor="suggest-text" help={unchanged ? "Edit the text to suggest a change." : undefined}>
           <textarea
@@ -428,7 +428,7 @@ function SuggestForm({
             rows={3}
             value={value}
             onChange={(e) => setValue(e.target.value)}
-            className="field-input text-[17px]"
+            className="field-input text-[18px]"
           />
         </Field>
         <div className="flex flex-col gap-5">
@@ -449,14 +449,14 @@ function SuggestForm({
           </Field>
         </div>
       </div>
-      <label className="mt-5 flex items-start gap-3 text-[14.5px] text-fg">
+      <label className="mt-5 flex items-start gap-3 text-[16px] text-fg">
         <input type="checkbox" className="mt-1 size-4" checked={consent} onChange={(e) => setConsent(e.target.checked)} />
         <span>
           I wrote this translation and agree to share it under {license === "CC0-1.0" ? "CC0" : "CC-BY-4.0"} to improve AfriLingua.
         </span>
       </label>
       {consentError && (
-        <p className="mt-2 text-[13px] font-medium text-danger" role="alert">
+        <p className="mt-2 text-[14px] font-medium text-danger" role="alert">
           {consentError}
         </p>
       )}

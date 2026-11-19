@@ -1,5 +1,6 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
+import vike from "vike/plugin";
 import tailwindcss from "@tailwindcss/vite";
 
 const ENGINE = process.env.AFRILINGUA_ENGINE_URL ?? "http://127.0.0.1:8000";
@@ -7,7 +8,7 @@ const ENGINE = process.env.AFRILINGUA_ENGINE_URL ?? "http://127.0.0.1:8000";
 const proxyEntry = { target: ENGINE, changeOrigin: true, ws: true } as const;
 
 export default defineConfig({
-  plugins: [react(), tailwindcss()],
+  plugins: [vike(), react(), tailwindcss()],
   server: {
     port: 5173,
     strictPort: true,

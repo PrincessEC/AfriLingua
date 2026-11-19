@@ -1,64 +1,76 @@
 @import "tailwindcss";
 
 /*
- * AfriLingua design tokens: cool neutral (zinc) base, one primary (adire indigo),
- * emerald reserved for live / online / success states, red for errors.
- * Shape: 8px for controls, 10px for cards, full round only for status dots.
- * Motion: opacity / translate only, 250 ms or less, disabled under reduced motion.
+ * AfriLingua design tokens.
+ *
+ * - One neutral family (cool grey) and one accent: signal orange, used for primary
+ *   buttons and a few highlights, with near-black text on it for contrast.
+ * - Green is a status colour only (live, online, success). Amber warns, red errors.
+ * - Dark mode is near-black with very small steps between surfaces.
+ * - Radius: 6px chips, 8px controls, 12px cards, 16px large panels.
+ * - Motion: opacity / transform only, 250 ms or less, disabled under reduced motion.
  */
 
 @custom-variant dark (&:where(.dark, .dark *));
 
 :root {
-  --bg: #fafafa;
+  --bg: #fbfbfc;
   --bg-raised: #ffffff;
-  --bg-sunken: #f4f4f5;
-  --bg-ink: #0a0a0b;
-  --line: #e4e4e7;
-  --line-strong: #d4d4d8;
-  --fg: #0a0a0b;
-  --fg-muted: #52525b;
-  --fg-subtle: #6b6b74;
-  --accent: #3b47d9;
-  --accent-hover: #2f39b8;
-  --accent-fg: #ffffff;
-  --accent-text: #3440cc;
-  --accent-soft: rgb(59 71 217 / 0.08);
-  --live: #10b981;
-  --ok: #047857;
-  --ok-soft: rgb(16 185 129 / 0.12);
-  --danger: #ce2c31;
-  --danger-soft: rgb(229 72 77 / 0.1);
-  --shadow-tint: 9 9 11;
-  --ink-fg: #fafafa;
-  --ink-muted: #a1a1aa;
-  --ink-line: #27272a;
+  --bg-sunken: #f2f2f4;
+  --bg-ink: #0b0b0d;
+  --line: #e6e6e9;
+  --line-strong: #d2d2d7;
+  --fg: #0b0b0d;
+  --fg-muted: #4d4d55;
+  --fg-subtle: #6a6a73;
+  --accent: #f26a10;
+  --accent-hover: #e05d07;
+  --accent-fg: #140700;
+  --accent-text: #c43f04;
+  --accent-soft: rgb(242 106 16 / 0.1);
+  --accent-line: rgb(242 106 16 / 0.35);
+  --live: #12a35c;
+  --ok: #0b7442;
+  --ok-soft: rgb(13 127 72 / 0.09);
+  --warn: #8a5a00;
+  --warn-soft: rgb(234 160 0 / 0.14);
+  --danger: #c4282d;
+  --danger-soft: rgb(196 40 45 / 0.08);
+  --shadow-tint: 11 11 13;
+  --ink-fg: #f4f4f5;
+  --ink-muted: #a3a3ab;
+  --ink-line: #24242a;
+  --grid-line: rgb(11 11 13 / 0.055);
 }
 
 .dark {
-  --bg: #09090b;
-  --bg-raised: #111113;
-  --bg-sunken: #18181b;
-  --bg-ink: #111113;
-  --line: #27272a;
-  --line-strong: #3f3f46;
-  --fg: #fafafa;
-  --fg-muted: #a1a1aa;
-  --fg-subtle: #8b8b94;
-  --accent: #4c57e6;
-  --accent-hover: #5d68f0;
-  --accent-fg: #ffffff;
-  --accent-text: #8f98ff;
-  --accent-soft: rgb(124 134 255 / 0.12);
-  --live: #10b981;
-  --ok: #34d399;
-  --ok-soft: rgb(16 185 129 / 0.14);
-  --danger: #ff6369;
-  --danger-soft: rgb(229 72 77 / 0.14);
+  --bg: #050506;
+  --bg-raised: #0b0b0d;
+  --bg-sunken: #121215;
+  --bg-ink: #0b0b0d;
+  --line: #1b1b1f;
+  --line-strong: #2a2a30;
+  --fg: #ededef;
+  --fg-muted: #a1a1a9;
+  --fg-subtle: #7b7b84;
+  --accent: #ff7a1a;
+  --accent-hover: #ff8f3d;
+  --accent-fg: #140700;
+  --accent-text: #ff8f45;
+  --accent-soft: rgb(255 122 26 / 0.12);
+  --accent-line: rgb(255 122 26 / 0.38);
+  --live: #3fcf80;
+  --ok: #4fd88b;
+  --ok-soft: rgb(63 207 128 / 0.1);
+  --warn: #f1b42f;
+  --warn-soft: rgb(241 180 47 / 0.1);
+  --danger: #ff5c61;
+  --danger-soft: rgb(255 92 97 / 0.1);
   --shadow-tint: 0 0 0;
-  --ink-fg: #fafafa;
-  --ink-muted: #a1a1aa;
-  --ink-line: #27272a;
+  --ink-fg: #ededef;
+  --ink-muted: #a1a1a9;
+  --ink-line: #1b1b1f;
+  --grid-line: rgb(255 255 255 / 0.045);
 }
 
 @theme inline {
@@ -76,9 +88,12 @@
   --color-accent-fg: var(--accent-fg);
   --color-accent-text: var(--accent-text);
   --color-accent-soft: var(--accent-soft);
+  --color-accent-line: var(--accent-line);
   --color-live: var(--live);
   --color-ok: var(--ok);
   --color-ok-soft: var(--ok-soft);
+  --color-warn: var(--warn);
+  --color-warn-soft: var(--warn-soft);
   --color-danger: var(--danger);
   --color-danger-soft: var(--danger-soft);
   --color-ink-fg: var(--ink-fg);
@@ -87,8 +102,8 @@
 }
 
 @theme {
-  --font-display: "Inter Tight Variable", ui-sans-serif, system-ui, "Segoe UI", sans-serif;
-  --font-sans: "Inter Tight Variable", ui-sans-serif, system-ui, "Segoe UI", sans-serif;
+  --font-display: "Geist Variable", ui-sans-serif, system-ui, "Segoe UI", sans-serif;
+  --font-sans: "Geist Variable", ui-sans-serif, system-ui, "Segoe UI", sans-serif;
   --font-mono: "Geist Mono Variable", ui-monospace, "Cascadia Code", Consolas, monospace;
   --ease-out-strong: cubic-bezier(0.23, 1, 0.32, 1);
   --ease-drawer: cubic-bezier(0.32, 0.72, 0, 1);
@@ -130,7 +145,8 @@
   }
   body {
     @apply bg-bg text-fg font-sans;
-    font-feature-settings: "cv11", "ss03";
+    font-size: 17px;
+    line-height: 1.6;
     min-height: 100dvh;
   }
   ::selection {
@@ -164,6 +180,13 @@
   input[type="radio"] {
     accent-color: var(--accent);
   }
+  /* Data is easier to compare when digits line up. */
+  .tabular,
+  table,
+  dd,
+  [data-numeric] {
+    font-variant-numeric: tabular-nums;
+  }
 }
 
 @layer components {
@@ -172,7 +195,7 @@
     display: block;
   }
   .core {
-    @apply rounded-[10px] border border-line bg-raised;
+    @apply rounded-xl border border-line bg-raised;
   }
 
   .field-input {
@@ -201,6 +224,20 @@
 
   .kbd {
     @apply inline-flex min-w-[1.375rem] items-center justify-center rounded-[5px] border border-line-strong bg-sunken px-1.5 font-mono text-[11px] leading-5 text-muted;
+  }
+
+  /* Small mono label used above section headings. */
+  .eyebrow {
+    @apply font-mono text-[12px] font-medium uppercase tracking-[0.14em] text-subtle;
+  }
+
+  /* Faint engineering grid, faded out at the edges. Used behind the hero only. */
+  .bg-grid {
+    background-image:
+      linear-gradient(to right, var(--grid-line) 1px, transparent 1px),
+      linear-gradient(to bottom, var(--grid-line) 1px, transparent 1px);
+    background-size: 56px 56px;
+    mask-image: radial-gradient(ellipse 70% 60% at 50% 0%, #000 30%, transparent 75%);
   }
 
   .scrollbar-thin {
