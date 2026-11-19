@@ -5,6 +5,7 @@ Audio is resampled to the output device's native rate before playback (the
 same WASAPI sample-rate issue that affects capture) and written in short
 blocks so :meth:`AudioPlayer.clear` takes effect within ~50 ms.
 """
+
 from __future__ import annotations
 
 import contextlib
@@ -125,7 +126,7 @@ class AudioPlayer:
         import sounddevice as sd
 
         info = sd.query_devices(self.device, "output")
-        self._output_sr = int(round(float(info["default_samplerate"]) or 48_000))
+        self._output_sr = round(float(info["default_samplerate"]) or 48_000)
         return self._output_sr
 
     def _write(self, block: np.ndarray, sr: int) -> None:

@@ -9,6 +9,7 @@ when its package imports and transparently falls back to the PyTorch
 implementation — at registration time if the package is missing, or at load
 time if the fast backend fails to load.
 """
+
 from __future__ import annotations
 
 import logging
@@ -33,7 +34,9 @@ class FallbackBackend:
     see the normal backend API (``translate_batch``, ``transcribe`` …).
     """
 
-    def __init__(self, primary: Callable[[], Backend], fallback: Callable[[], Backend], *, label: str) -> None:
+    def __init__(
+        self, primary: Callable[[], Backend], fallback: Callable[[], Backend], *, label: str
+    ) -> None:
         self._primary_factory = primary
         self._fallback_factory = fallback
         self._label = label
@@ -55,7 +58,9 @@ class FallbackBackend:
                 return
             except Exception as exc:
                 self.fallback_reason = f"{type(exc).__name__}: {exc}"
-                logger.warning("%s: fast backend failed to load (%s); falling back.", self._label, exc, exc_info=True)
+                logger.warning(
+                    "%s: fast backend failed to load (%s); falling back.", self._label, exc, exc_info=True
+                )
                 self._active = self._fallback_factory()
         self._active.load()
 
@@ -105,7 +110,9 @@ def _asr_en_factory(settings: Settings) -> tuple[Callable[[], Backend], str]:
     )
 
 
-def register_default_backends(manager: ModelManager, *, settings: Settings | None = None, replace: bool = False) -> None:
+def register_default_backends(
+    manager: ModelManager, *, settings: Settings | None = None, replace: bool = False
+) -> None:
     """Register lazy factories for ``mt``, ``asr.en``, ``asr.mms``, ``tts`` and ``vad``.
 
     Nothing is loaded here; models load on first use (or via ``manager.preload``).

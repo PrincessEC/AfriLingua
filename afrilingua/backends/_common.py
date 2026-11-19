@@ -4,6 +4,7 @@ Shared helpers for concrete backends.
 Everything here is import-light: heavy libraries (torch, transformers,
 huggingface_hub) are imported inside functions only.
 """
+
 from __future__ import annotations
 
 import hashlib
@@ -117,7 +118,10 @@ def snapshot_path(
     try:
         path = Path(
             snapshot_download(
-                model_id, cache_dir=str(settings.hf_cache), local_files_only=True, allow_patterns=allow_patterns
+                model_id,
+                cache_dir=str(settings.hf_cache),
+                local_files_only=True,
+                allow_patterns=allow_patterns,
             )
         )
         if _ok(path):
@@ -128,7 +132,9 @@ def snapshot_path(
         raise OfflineModelMissingError(model_id)
     logger.info("Downloading %s into %s ...", model_id, settings.hf_cache)
     try:
-        path = Path(snapshot_download(model_id, cache_dir=str(settings.hf_cache), allow_patterns=allow_patterns))
+        path = Path(
+            snapshot_download(model_id, cache_dir=str(settings.hf_cache), allow_patterns=allow_patterns)
+        )
     except Exception as exc:
         raise ModelLoadError(f"Could not download {model_id!r}: {exc}") from exc
     if not _ok(path):
@@ -138,7 +144,12 @@ def snapshot_path(
 
 # ── NLLB checkpoint resolution ──────────────────────────────────────────────
 
-_WEIGHT_FILES = ("model.safetensors", "pytorch_model.bin", "model.safetensors.index.json", "pytorch_model.bin.index.json")
+_WEIGHT_FILES = (
+    "model.safetensors",
+    "pytorch_model.bin",
+    "model.safetensors.index.json",
+    "pytorch_model.bin.index.json",
+)
 
 
 def is_valid_hf_checkpoint(path: Path) -> bool:
@@ -146,7 +157,11 @@ def is_valid_hf_checkpoint(path: Path) -> bool:
 
     (v1 loaded *any* non-empty directory, e.g. one holding only training logs.)
     """
-    return path.is_dir() and (path / "config.json").is_file() and any((path / f).is_file() for f in _WEIGHT_FILES)
+    return (
+        path.is_dir()
+        and (path / "config.json").is_file()
+        and any((path / f).is_file() for f in _WEIGHT_FILES)
+    )
 
 
 def is_ct2_model_dir(path: Path) -> bool:
@@ -173,7 +188,7 @@ def resolve_mt_source(settings: Settings, default_model_id: str) -> str:
 def checkpoint_fingerprint(path: Path) -> str:
     """Short hash of a local checkpoint's weight files (size + mtime)."""
     h = hashlib.sha1()
-    for name in sorted(_WEIGHT_FILES + ("config.json",)):
+    for name in sorted((*_WEIGHT_FILES, "config.json")):
         f = path / name
         if f.is_file():
             st = f.stat()
@@ -200,4 +215,8 @@ def ct2_compute_type(device: str, plan_compute_type: str) -> str:
     """Compute type valid for ``device`` (int8 on CPU unless float32 was forced)."""
     if device == "cpu":
         return "float32" if plan_compute_type == "float32" else "int8"
-    return plan_compute_type if plan_compute_type in {"float16", "int8_float16", "float32", "int8"} else "float16"
+    return (
+        plan_compute_type
+        if plan_compute_type in {"float16", "int8_float16", "float32", "int8"}
+        else "float16"
+    )

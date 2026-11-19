@@ -8,6 +8,7 @@ Both decode greedily by default, never condition on previous text (prevents
 hallucination loops in live use), skip timestamp tokens for speed, and leave
 voice-activity detection to the pipeline (``vad_filter=False``).
 """
+
 from __future__ import annotations
 
 import logging
@@ -141,7 +142,9 @@ class FasterWhisperBackend(_WhisperBase):
         text = " ".join(s.text for s in segments).strip()
         conf = float(np.mean([math.exp(lp) for lp in logprobs])) if logprobs else None
         spec = self.registry.get(lang)
-        return Transcript(text=text, language=spec.name, segments=tuple(segments), confidence=conf, duration_s=duration)
+        return Transcript(
+            text=text, language=spec.name, segments=tuple(segments), confidence=conf, duration_s=duration
+        )
 
 
 class OpenAIWhisperBackend(_WhisperBase):

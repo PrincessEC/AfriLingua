@@ -1,4 +1,5 @@
 """PCM16 ↔ float32 conversion and WAV/compressed-audio encode/decode."""
+
 from __future__ import annotations
 
 import io
@@ -51,7 +52,21 @@ def _decode_ffmpeg(data: bytes, target_sr: int) -> np.ndarray:
     if not exe:
         raise InvalidInputError("Unsupported audio format (install ffmpeg to decode mp3/webm/ogg-opus).")
     proc = subprocess.run(
-        [exe, "-nostdin", "-loglevel", "error", "-i", "pipe:0", "-f", "s16le", "-ac", "1", "-ar", str(target_sr), "pipe:1"],
+        [
+            exe,
+            "-nostdin",
+            "-loglevel",
+            "error",
+            "-i",
+            "pipe:0",
+            "-f",
+            "s16le",
+            "-ac",
+            "1",
+            "-ar",
+            str(target_sr),
+            "pipe:1",
+        ],
         input=data,
         capture_output=True,
         check=False,

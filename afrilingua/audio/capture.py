@@ -6,6 +6,7 @@ The input stream is opened at the device's **native default sample rate**
 16 kHz) and resampled to 16 kHz on a consumer thread. The PortAudio callback
 only copies frames into a bounded queue — it never runs models or resampling.
 """
+
 from __future__ import annotations
 
 import contextlib
@@ -114,7 +115,7 @@ class MicrophoneCapture:
         import sounddevice as sd
 
         info = sd.query_devices(self.device, "input")
-        self.native_sr = int(round(float(info["default_samplerate"]) or 48_000))
+        self.native_sr = round(float(info["default_samplerate"]) or 48_000)
         blocksize = max(64, int(self.native_sr * self.block_s))
         extra = None
         try:
@@ -154,7 +155,12 @@ class MicrophoneCapture:
         self._thread.start()
         self._stream.start()
         self._running.set()
-        logger.info("Microphone capture started (%s Hz native → %s Hz, %d ch)", self.native_sr, self.target_sr, self.channels)
+        logger.info(
+            "Microphone capture started (%s Hz native → %s Hz, %d ch)",
+            self.native_sr,
+            self.target_sr,
+            self.channels,
+        )
         return self
 
     def stop(self) -> None:

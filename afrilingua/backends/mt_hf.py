@@ -5,6 +5,7 @@ Used when CTranslate2 is unavailable, or on CUDA machines where CT2 has no GPU
 build. fp16 on CUDA, fp32 on CPU, ``torch.inference_mode`` and automatic
 fallback to CPU on CUDA out-of-memory.
 """
+
 from __future__ import annotations
 
 import logging

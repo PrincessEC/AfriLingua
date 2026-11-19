@@ -4,6 +4,7 @@ NLLB-200 translation via CTranslate2 (int8 on CPU, fp16 / int8_fp16 on CUDA).
 The Hugging Face checkpoint is converted once into
 ``settings.ct2_cache/<model-slug>-<quantization>`` and reused afterwards.
 """
+
 from __future__ import annotations
 
 import logging
@@ -94,7 +95,9 @@ def ensure_ct2_model(source: str, quantization: str, settings: Settings | None =
         shutil.rmtree(tmp, ignore_errors=True)
         target.parent.mkdir(parents=True, exist_ok=True)
         copy_files = [f for f in _TOKENIZER_FILES if (local / f).is_file()]
-        logger.info("Converting %s to CTranslate2 (%s) — one-time, may take a few minutes ...", source, quantization)
+        logger.info(
+            "Converting %s to CTranslate2 (%s) — one-time, may take a few minutes ...", source, quantization
+        )
         t0 = time.perf_counter()
         try:
             converter = ctranslate2.converters.TransformersConverter(str(local), copy_files=copy_files)
@@ -163,7 +166,9 @@ class CT2NLLBBackend:
             local_files_only=bool(self.settings.offline) or Path(str(tok_source)).is_dir(),
         )
         self.model_dir = model_dir
-        logger.info("CT2 NLLB ready (%s, %s, %d threads) from %s", self.device, self.compute_type, threads, model_dir)
+        logger.info(
+            "CT2 NLLB ready (%s, %s, %d threads) from %s", self.device, self.compute_type, threads, model_dir
+        )
 
     def is_loaded(self) -> bool:
         return self._translator is not None

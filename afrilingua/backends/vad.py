@@ -10,6 +10,7 @@ cannot serve several concurrent audio streams. The backend registered in the
 ModelManager is therefore a light factory: :meth:`SileroVADBackend.new_stream`
 returns an independent :class:`VADStream` per live session.
 """
+
 from __future__ import annotations
 
 import logging
@@ -97,4 +98,6 @@ class SileroVADBackend:
         stream = self.new_stream()
         audio = np.asarray(audio, dtype=np.float32).reshape(-1)
         n = len(audio) // WINDOW_SAMPLES
-        return np.array([stream(audio[i * WINDOW_SAMPLES : (i + 1) * WINDOW_SAMPLES]) for i in range(n)], dtype=np.float32)
+        return np.array(
+            [stream(audio[i * WINDOW_SAMPLES : (i + 1) * WINDOW_SAMPLES]) for i in range(n)], dtype=np.float32
+        )

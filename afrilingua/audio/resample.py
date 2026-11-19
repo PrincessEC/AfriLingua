@@ -6,6 +6,7 @@ Uses ``soxr`` (high quality, fast) when installed and a NumPy fallback
 variant keeps filter state between chunks, so resampling a live stream chunk
 by chunk has no clicks at chunk boundaries.
 """
+
 from __future__ import annotations
 
 import logging
@@ -47,7 +48,7 @@ def resample(audio: Any, orig_sr: int, target_sr: int = 16_000) -> np.ndarray:
     kernel = _lowpass_kernel(orig_sr, target_sr)
     if kernel is not None:
         x = np.convolve(x, kernel, mode="same").astype(np.float32)
-    n_out = int(round(x.size * target_sr / orig_sr))
+    n_out = round(x.size * target_sr / orig_sr)
     positions = np.arange(n_out, dtype=np.float64) * (orig_sr / target_sr)
     return np.interp(positions, np.arange(x.size), x).astype(np.float32)
 

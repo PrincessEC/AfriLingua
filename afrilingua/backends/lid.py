@@ -16,6 +16,7 @@ tokens for very short inputs. A single matching word inside a longer sentence
 never decides (v1 classified "Aha, I see" as Igbo). Lingua (English/Yoruba)
 is consulted as a tie-breaker when installed. Otherwise ``("unknown", 0.0)``.
 """
+
 from __future__ import annotations
 
 import logging
@@ -152,7 +153,9 @@ class HeuristicLanguageIdentifier:
                 if self._lingua is None:
                     from lingua import Language, LanguageDetectorBuilder
 
-                    self._lingua = LanguageDetectorBuilder.from_languages(Language.ENGLISH, Language.YORUBA).build()
+                    self._lingua = LanguageDetectorBuilder.from_languages(
+                        Language.ENGLISH, Language.YORUBA
+                    ).build()
         return self._lingua
 
     def _lingua_tiebreak(self, text: str, scores: dict[str, float], n: int) -> tuple[str, float]:
@@ -171,6 +174,11 @@ class HeuristicLanguageIdentifier:
         african = sum(v for k, v in scores.items() if k != "english")
         if lang == "english" and conf >= 0.75 and african < 1.0 and "english" in self.registry:
             return "english", round(conf * 0.9, 3)
-        if lang == "yoruba" and conf >= 0.75 and scores.get("yoruba", 0.0) >= 1.0 and "yoruba" in self.registry:
+        if (
+            lang == "yoruba"
+            and conf >= 0.75
+            and scores.get("yoruba", 0.0) >= 1.0
+            and "yoruba" in self.registry
+        ):
             return "yoruba", round(conf * 0.9, 3)
         return "unknown", 0.0

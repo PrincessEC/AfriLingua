@@ -10,6 +10,7 @@ Meta MMS speech recognition (``facebook/mms-1b-all`` + per-language adapters).
 * fp16 on CUDA; on CPU optional dynamic int8 quantization of the encoder's
   Linear layers (adapters and the CTC head stay float so they can be swapped).
 """
+
 from __future__ import annotations
 
 import logging
@@ -110,7 +111,9 @@ class MMSASRBackend:
         validate_mms_config(config, self.model_id)
         default = self._default_code()
         self._processor = AutoProcessor.from_pretrained(self.model_id, target_lang=default, **kwargs)
-        self.dtype_name = "float16" if self.plan.device == "cuda" and self.plan.torch_dtype == "float16" else "float32"
+        self.dtype_name = (
+            "float16" if self.plan.device == "cuda" and self.plan.torch_dtype == "float16" else "float32"
+        )
         model = Wav2Vec2ForCTC.from_pretrained(
             self.model_id, ignore_mismatched_sizes=True, **kwargs, **dtype_kwargs(self.dtype_name)
         )
@@ -153,10 +156,14 @@ class MMSASRBackend:
                 for name, module in self._model.named_modules()
                 if isinstance(module, nn.Linear) and "adapter" not in name and not name.startswith("lm_head")
             }
-            self._model = torch.ao.quantization.quantize_dynamic(self._model, spec, dtype=torch.qint8, inplace=True)
+            self._model = torch.ao.quantization.quantize_dynamic(
+                self._model, spec, dtype=torch.qint8, inplace=True
+            )
             self.quantized = True
         except Exception:
-            logger.warning("Dynamic int8 quantization of MMS ASR failed; continuing in float32.", exc_info=True)
+            logger.warning(
+                "Dynamic int8 quantization of MMS ASR failed; continuing in float32.", exc_info=True
+            )
             self.quantized = False
 
     def is_loaded(self) -> bool:
@@ -206,7 +213,9 @@ class MMSASRBackend:
             except Exception as exc:
                 last_exc = exc
         if path is None:
-            raise ModelLoadError(f"Could not load MMS ASR adapter {code!r} from {self.model_id!r}: {last_exc}")
+            raise ModelLoadError(
+                f"Could not load MMS ASR adapter {code!r} from {self.model_id!r}: {last_exc}"
+            )
         if path.endswith(".safetensors"):
             from safetensors.torch import load_file
 
@@ -233,7 +242,9 @@ class MMSASRBackend:
         model = self._model
         head_w = weights.get("lm_head.weight")
         if head_w is not None and tuple(model.lm_head.weight.shape) != tuple(head_w.shape):
-            model.lm_head = nn.Linear(head_w.shape[1], head_w.shape[0]).to(device=head_w.device, dtype=head_w.dtype)
+            model.lm_head = nn.Linear(head_w.shape[1], head_w.shape[0]).to(
+                device=head_w.device, dtype=head_w.dtype
+            )
             model.config.vocab_size = head_w.shape[0]
         params = dict(model.named_parameters())
         missing = [k for k in weights if k not in params]
@@ -291,7 +302,9 @@ class MMSASRBackend:
                 logger.warning("CUDA out of memory in MMS ASR; moving model to CPU.")
                 empty_cuda_cache()
                 self._model.to(device="cpu", dtype=torch.float32)
-                self._adapter_cache = {k: {n: t.float().cpu() for n, t in v.items()} for k, v in self._adapter_cache.items()}
+                self._adapter_cache = {
+                    k: {n: t.float().cpu() for n, t in v.items()} for k, v in self._adapter_cache.items()
+                }
                 self.device, self.dtype_name = "cpu", "float32"
                 text, conf = self._infer(chunk)
             if text:

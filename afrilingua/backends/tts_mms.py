@@ -11,8 +11,10 @@ Speech synthesis for every registry language with one backend.
   unavailable (or ``TTS_EN_BACKEND=pyttsx3``). pyttsx3 is not thread-safe, so
   it runs on one dedicated thread.
 """
+
 from __future__ import annotations
 
+import contextlib
 import logging
 import os
 import tempfile
@@ -89,10 +91,8 @@ class Pyttsx3Voice:
             data, sr = sf.read(path, dtype="float32", always_2d=True)
             return SpeechAudio(data.mean(axis=1).astype(np.float32), int(sr))
         finally:
-            try:
+            with contextlib.suppress(OSError):
                 os.unlink(path)
-            except OSError:
-                pass
 
     def synthesize(self, text: str) -> SpeechAudio:
         """Synthesize ``text`` (blocking) on the dedicated pyttsx3 thread."""
@@ -164,7 +164,9 @@ class MMSTTSBackend:
         kwargs = hf_kwargs(self.settings)
         logger.info("Loading MMS TTS voice for %s from %s ...", lang, model_id)
         tokenizer = AutoTokenizer.from_pretrained(model_id, **kwargs)
-        dtype_name = "float16" if self.plan.device == "cuda" and self.plan.torch_dtype == "float16" else "float32"
+        dtype_name = (
+            "float16" if self.plan.device == "cuda" and self.plan.torch_dtype == "float16" else "float32"
+        )
         model = VitsModel.from_pretrained(model_id, **kwargs, **dtype_kwargs(dtype_name))
         model.eval()
         device = self.plan.device

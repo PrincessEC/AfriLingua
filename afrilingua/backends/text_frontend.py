@@ -8,6 +8,7 @@ Light text front-end for speech synthesis and document translation.
   decomposing unknown precomposed letters (``é`` → ``e`` + U+0301) so tone
   marks survive whichever Unicode form the model was trained on.
 """
+
 from __future__ import annotations
 
 import re
@@ -16,9 +17,49 @@ from collections.abc import Iterable
 
 _ABBREVIATIONS = frozenset(
     {
-        "mr", "mrs", "ms", "dr", "prof", "sr", "jr", "st", "mt", "vs", "etc", "e.g", "i.e", "no", "fig",
-        "gen", "gov", "hon", "rev", "sen", "rep", "col", "capt", "lt", "sgt", "inc", "ltd", "co", "corp",
-        "jan", "feb", "mar", "apr", "jun", "jul", "aug", "sep", "sept", "oct", "nov", "dec", "approx", "dept",
+        "mr",
+        "mrs",
+        "ms",
+        "dr",
+        "prof",
+        "sr",
+        "jr",
+        "st",
+        "mt",
+        "vs",
+        "etc",
+        "e.g",
+        "i.e",
+        "no",
+        "fig",
+        "gen",
+        "gov",
+        "hon",
+        "rev",
+        "sen",
+        "rep",
+        "col",
+        "capt",
+        "lt",
+        "sgt",
+        "inc",
+        "ltd",
+        "co",
+        "corp",
+        "jan",
+        "feb",
+        "mar",
+        "apr",
+        "jun",
+        "jul",
+        "aug",
+        "sep",
+        "sept",
+        "oct",
+        "nov",
+        "dec",
+        "approx",
+        "dept",
     }
 )
 _BOUNDARY = re.compile(r"[.!?…]+[\"'”’)\]]*\s+|[。！？]\s*|\n{2,}")
@@ -33,7 +74,7 @@ def _is_abbreviation(prefix: str) -> bool:
     if word in _ABBREVIATIONS:
         return True
     # single initials ("J. R. R. Tolkien") and dotted acronyms ("U.S.")
-    return len(word) == 1 and word.isalpha() or bool(re.fullmatch(r"(?:[a-z]\.)+[a-z]", word))
+    return (len(word) == 1 and word.isalpha()) or bool(re.fullmatch(r"(?:[a-z]\.)+[a-z]", word))
 
 
 def split_sentences(text: str, *, max_chars: int = 300) -> list[str]:
@@ -47,7 +88,11 @@ def split_sentences(text: str, *, max_chars: int = 300) -> list[str]:
         end = m.end()
         candidate = text[start:end]
         nxt = text[end : end + 1]
-        if m.group(0).strip() and m.group(0)[0] in ".!?…" and (_is_abbreviation(candidate) or (nxt and nxt.islower())):
+        if (
+            m.group(0).strip()
+            and m.group(0)[0] in ".!?…"
+            and (_is_abbreviation(candidate) or (nxt and nxt.islower()))
+        ):
             continue
         if candidate.strip():
             sentences.append(candidate.strip())
@@ -83,8 +128,26 @@ def _cap_length(sentence: str, max_chars: int) -> list[str]:
 # ── numbers (English) ───────────────────────────────────────────────────────
 
 _ONES = [
-    "zero", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten", "eleven", "twelve",
-    "thirteen", "fourteen", "fifteen", "sixteen", "seventeen", "eighteen", "nineteen",
+    "zero",
+    "one",
+    "two",
+    "three",
+    "four",
+    "five",
+    "six",
+    "seven",
+    "eight",
+    "nine",
+    "ten",
+    "eleven",
+    "twelve",
+    "thirteen",
+    "fourteen",
+    "fifteen",
+    "sixteen",
+    "seventeen",
+    "eighteen",
+    "nineteen",
 ]
 _TENS = ["", "", "twenty", "thirty", "forty", "fifty", "sixty", "seventy", "eighty", "ninety"]
 _SCALES = [(1_000_000_000, "billion"), (1_000_000, "million"), (1_000, "thousand"), (100, "hundred")]
@@ -117,12 +180,15 @@ def expand_numbers_en(text: str) -> str:
     text = re.sub(r"(\d+)%", lambda m: f"{m.group(1)} percent", text)
     return re.sub(
         r"\d{1,3}(?:,\d{3})+|\d+",
-        lambda m: number_to_words_en(int(m.group(0).replace(",", ""))) if len(m.group(0)) <= 13 else m.group(0),
+        lambda m: (
+            number_to_words_en(int(m.group(0).replace(",", ""))) if len(m.group(0)) <= 13 else m.group(0)
+        ),
         text,
     )
 
 
 # ── vocabulary filtering ────────────────────────────────────────────────────
+
 
 def filter_to_vocab(text: str, vocab: Iterable[str]) -> str:
     """Drop characters unknown to a character-level TTS vocabulary.
